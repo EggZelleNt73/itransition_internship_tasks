@@ -1,6 +1,7 @@
 import pandas as pd
 from pathlib import Path
 import yaml
+from src.types import StoreDataCollection
 
     
 def extract_yaml_file(file_path: Path) -> pd.DataFrame:
@@ -21,7 +22,7 @@ def extract_csv_file(file_path: Path) -> pd.DataFrame:
     return df
 
 
-def extract_raw_files(directory_path: Path) -> dict[str, dict[str, pd.DataFrame]]:
+def extract_raw_files(directory_path: Path) -> StoreDataCollection:
     store_dfs = {}
     for item in directory_path.iterdir():
         if item.is_dir():
@@ -43,7 +44,8 @@ def extract_raw_files(directory_path: Path) -> dict[str, dict[str, pd.DataFrame]
                         df = extract_csv_file(file_path)
 
                     if (df is not None) and (not df.empty):
-                        df_dictionary[file_path.name] = df
+                        df = df.drop_duplicates()
+                        df_dictionary[file_path.stem] = df
                 except Exception as e:
                     print(f"Failed to read a file {file_path.name}: {e}")
 
