@@ -11,6 +11,11 @@ def stream_store_files(collect: StoreDataCollection):
             yield store_name, file, df
 
 
+def stream_all_store_files(collect: StoreDataCollection):
+    for store_name, dfs in collect.items():
+        yield store_name, dfs
+
+
 def replace_empty_data(df: pd.DataFrame) -> pd.DataFrame:
     EMPTY_STRING_VALUES = ["", "nan", "None", "NULL"]
     EMPTY_NUMERIC_VALUES = [0]
