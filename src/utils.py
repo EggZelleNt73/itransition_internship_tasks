@@ -3,6 +3,7 @@ from src.types import StoreDataCollection
 from src.constants import (
     UNKNOWN_STRING_VALUE,
 )
+import networkx as nx
 
 
 def stream_store_files(collect: StoreDataCollection):
@@ -46,3 +47,29 @@ def fill_na_values(df: pd.DataFrame) -> pd.DataFrame:
             df[col] = df[col].fillna(UNKNOWN_STRING_VALUE)
 
     return df
+
+
+def reconciliation_construction(df: pd.DataFrame, add_nodes_by: str, columns: list) -> dict[int, str]:
+    G = nx.Graph()
+    G.add_nodes_from(df[add_nodes_by])
+
+    for column in columns:
+        groups = (df[df[column].notna() & (df[column] != UNKNOWN_STRING_VALUE)]\
+                    .groupby(column)[add_nodes_by]\
+                    .apply(list)
+                    )
+        for id_list in groups:
+            if len(id_list) > 1:
+                base_id = id_list[0]
+                for matching_id in id_list[1:]:
+                    G.add_edge(base_id, matching_id)
+
+    connected_components = list(nx.connected_components(G))
+
+    id_to_master_map = {}
+    for master_idx, component in enumerate(connected_components, start=1):
+        master_id = f"MASTER_ID_{master_idx:03d}"
+        for row_id in component:
+            id_to_master_map[row_id] = master_id
+
+    return id_to_master_map

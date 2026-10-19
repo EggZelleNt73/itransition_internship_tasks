@@ -3,7 +3,7 @@ from src.constants import UNKNOWN_STRING_VALUE
 
 
 def find_unique_sets_of_authors_func(dfs: dict[str, pd.DataFrame]) -> pd.DataFrame:
-    df_books = dfs["books"]
+    df_books = dfs["books"].copy()
     author_series = df_books[(df_books["author"] != UNKNOWN_STRING_VALUE)]
 
     def standardize_author_set(author_string: str) -> str:
