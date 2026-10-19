@@ -22,13 +22,29 @@ def main():
     #     for file, df in df_dictionary.items():
     #         print(f"File name: {file} -> Number of rows: {df.count()}")
     #     print(f"\n")
+
+    # print(extracted_files["STORE1"]["books"].count())
+    # print(extracted_files["STORE1"]["orders"].info())
     
     apply_transformation(extracted_files)
-    dfs= extracted_files["STORE1"]
-    for file, df in dfs.items():
-        print(f"--{file}")
-        print(df.info())
-    print()    
+    # dfs= extracted_files
+    # for file, df in dfs.items():
+    #     print(f"--{file}")
+    #     print(df.info())
+    # print()
+
+    # for store_name, df_dictionary in extracted_files.items():
+    #     print(f"-- {store_name}")
+    #     for file, df in df_dictionary.items():
+    #         print(f"---File name: {file}")
+    #         print(df.info())
+    #     print()
+    
+
+    # print(extracted_files["STORE1"]["books"].count())
+    # print(extracted_files["STORE1"]["orders"].info())
+    # df = extracted_files["STORE1"]["orders"]
+    # print(df[["id", "date"]])
 
 
 if __name__ == "__main__":
