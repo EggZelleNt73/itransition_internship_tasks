@@ -44,17 +44,18 @@ def main():
 
     # print(extracted_files["STORE1"]["books"].count())
     # print(extracted_files["STORE1"]["orders"].info())
-    # df = extracted_files["STORE1"]["orders"]
+    # df = extracted_files["STORE1"]["books"]
     # print(df[["id", "date"]])
 
     df_daily_revenue = (apply_aggregation(extracted_files, "compute_daily_revenue"))
     df_amount_unique_users = (apply_aggregation(extracted_files, "find_amount_of_unique_users"))
+    df_unique_sets_of_authors = apply_aggregation(extracted_files, "find_unique_sets_of_authors")
 
 
-    # for store, agg_df in df_amount_unique_users.items():
+    # for store, agg_df in df_unique_sets_of_authors.items():
     #     print(f"--{store}")
     #     print(agg_df, end="\n")
-
+    # print(df)
 
 
 if __name__ == "__main__":

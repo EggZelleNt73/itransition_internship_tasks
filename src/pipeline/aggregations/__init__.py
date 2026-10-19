@@ -1,7 +1,8 @@
 from src.types import StoreDataCollection
 from src.pipeline.aggregations import (
     compute_daily_revenue,
-    find_amount_of_unique_users
+    find_amount_of_unique_users,
+    find_unique_sets_of_authors
 )
 import pandas as pd
 from src.utils import stream_all_store_files
@@ -9,7 +10,8 @@ from src.utils import stream_all_store_files
 
 AGGREGATION_ROUTER = {
     "compute_daily_revenue": compute_daily_revenue.compute_daily_revenue_func,
-    "find_amount_of_unique_users": find_amount_of_unique_users.find_amount_of_unique_users_func
+    "find_amount_of_unique_users": find_amount_of_unique_users.find_amount_of_unique_users_func,
+    "find_unique_sets_of_authors": find_unique_sets_of_authors.find_unique_sets_of_authors_func
 }
 
 
