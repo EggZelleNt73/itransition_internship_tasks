@@ -6,6 +6,7 @@ from src.enums import EnvVariables
 from src.pipeline.extract import extract_raw_files
 from src.pipeline.transformations import apply_transformation
 from src.pipeline.aggregations import apply_aggregation
+import matplotlib.pyplot as plt
 
 
 def main():
@@ -53,6 +54,25 @@ def main():
     df_most_popular_author = apply_aggregation(extracted_files, "most_popular_author")
     df_top_customer_by_spending = apply_aggregation(extracted_files, "top_customer_by_spending")
 
+    for store, df in df_daily_revenue.items():
+        plt.figure(figsize=(20, 5))
+        plt.plot(
+            df["date"],
+            df["paid_price"],
+            color="tab:blue",
+            linewidth=1,
+        )
+
+        plt.title(f"Top daily revenue over 5 days for {store}", fontsize=14, fontweight="bold", pad=15)
+        plt.xlabel("Date", fontsize=12)
+        plt.ylabel("Revenue", fontsize=12)
+        plt.grid(True, linestyle="-", alpha=0.6)
+
+        plt.gcf().autofmt_xdate()
+
+        plt.tight_layout()
+        plt.show()
+
 
     # for store, agg_df in df_top_customer_by_spending.items():
     #     print(f"--{store}")
@@ -62,5 +82,4 @@ def main():
 
 if __name__ == "__main__":
     main()
-
 

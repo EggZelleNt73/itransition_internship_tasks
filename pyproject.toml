@@ -6,6 +6,7 @@ readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "dotenv>=0.9.9",
+    "matplotlib>=3.11.2",
     "networkx>=3.7",
     "pandas>=3.0.6",
     "pyarrow>=26.0.0",
