@@ -4,13 +4,26 @@ from src.pipeline.transformations import apply_transformation
 from src.pipeline.aggregations import apply_aggregation
 import streamlit as st
 import plotly.express as px
+from src.logger import get_logger
+
+logger = get_logger(__name__)
 
 
 def main():
     @st.cache_data
     def load_data():
+        logger.info("Initializing data extraction strategy pipeline...")
         strategy = get_extraction_strategy()
         extracted_files = strategy.extract_raw_files()
+
+        logger.info("--- START DATA ALLOCATION KEY AUDIT ---")
+        if not extracted_files:
+            logger.warning("Extracted files structure is completely EMPTY!")
+        for store, files in extracted_files.items():
+            logger.info(f"Successfully processed Store target: '{store}'")
+            logger.info(f" -> Found inner data file collection keys: {list(files.keys())}")
+        logger.info("--- END DATA ALLOCATION KEY AUDIT ---")
+        
         apply_transformation(extracted_files)
         df_daily_revenue = apply_aggregation(extracted_files, "compute_daily_revenue")
         df_amount_unique_users = apply_aggregation(extracted_files, "find_amount_of_unique_users")

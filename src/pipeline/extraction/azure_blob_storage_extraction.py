@@ -6,6 +6,10 @@ from pathlib import Path
 from azure.storage.blob import BlobServiceClient
 from src.types import StoreDataCollection
 from src.domain.interfaces import FileExtractionStrategy
+from src.logger import get_logger
+
+
+logger = get_logger(__name__)
 
 
 class AzureBlobExtraction(FileExtractionStrategy):
@@ -66,10 +70,11 @@ class AzureBlobExtraction(FileExtractionStrategy):
                         if store_name not in stores_dfs:
                             stores_dfs[store_name] = {}
                         stores_dfs[store_name][file_stem] = df
+                        logger.info(f"Loaded blob successfully into memory: Map Key ['{store_name}']['{file_stem}']")
                 except Exception as e:
-                    print(f"Failed to read blob file {file_name}: {e}")
+                    logger.error(f"Critical failure parsing file stream '{file_name}' under store '{store_name}': {e}", exc_info=True)
         except Exception as container_err:
-            print (f"Failed to access blob container: {container_err}")
+            logger.error(f"Failed to access blob container: {container_err}")
             raise container_err
         
         return stores_dfs
