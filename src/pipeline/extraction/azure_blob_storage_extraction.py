@@ -46,7 +46,7 @@ class AzureBlobExtraction(FileExtractionStrategy):
                 file_name = path_parts[-1]
                 path_obj = Path(file_name)
                 suffix = path_obj.suffix.lower()
-                file_stem = path_obj.stem
+                file_stem = path_obj.stem.lower().strip()
                 df = None
 
                 try:
