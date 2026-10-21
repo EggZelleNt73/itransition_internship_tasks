@@ -5,6 +5,7 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+    "azure-storage-blob>=12.31.0",
     "dotenv>=0.9.9",
     "networkx>=3.7",
     "pandas>=3.0.6",
