@@ -1,8 +1,5 @@
-import os
-from pathlib import Path
-from src.config import load_configs
-from src.enums import EnvVariables
-from src.pipeline.extract import extract_raw_files
+import src.config
+from src.pipeline.extraction.factory import get_extraction_strategy
 from src.pipeline.transformations import apply_transformation
 from src.pipeline.aggregations import apply_aggregation
 import streamlit as st
@@ -10,19 +7,18 @@ import plotly.express as px
 
 
 def main():
-    load_configs()
-    extracted_files = extract_raw_files(Path(os.getenv(EnvVariables.RAW_DATA_PATH)))
-    apply_transformation(extracted_files)
-
-    
     @st.cache_data
     def load_data():
+        strategy = get_extraction_strategy()
+        extracted_files = strategy.extract_raw_files()
+        apply_transformation(extracted_files)
         df_daily_revenue = apply_aggregation(extracted_files, "compute_daily_revenue")
         df_amount_unique_users = apply_aggregation(extracted_files, "find_amount_of_unique_users")
         df_unique_sets_of_authors = apply_aggregation(extracted_files, "find_unique_sets_of_authors")
         df_most_popular_author = apply_aggregation(extracted_files, "most_popular_author")
         df_top_customer_by_spending = apply_aggregation(extracted_files, "top_customer_by_spending")
         return (
+            extracted_files,
             df_daily_revenue,
             df_amount_unique_users,
             df_unique_sets_of_authors,
@@ -32,6 +28,7 @@ def main():
 
 
     def load_dashboard(
+            extracted_files,
             df_daily_revenue, 
             df_amount_unique_users, 
             df_unique_sets_of_authors, 

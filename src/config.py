@@ -1,12 +1,17 @@
+import os
 from pathlib import Path
 from dotenv import load_dotenv
 from src.enums import EnvVariables
 
 
-def load_configs():
-    ENV_PATH = Path(__file__).resolve().parent.parent / EnvVariables.ENV_NAME
-    load_dotenv(dotenv_path=ENV_PATH)
+def init_environment():
+    if os.getenv(EnvVariables.APP_ENVIRONMENT):
+        return
+    
+    env_path = Path(__file__).resolve().parent.parent / EnvVariables.ENV_NAME
+    if env_path.exists():
+        load_dotenv(dotenv_path=env_path)
+    else:
+        print("No environment variables found in OS, and no .env file at {env_path}")
 
-
-if __name__ == "__main__":
-    load_configs()
+init_environment()
