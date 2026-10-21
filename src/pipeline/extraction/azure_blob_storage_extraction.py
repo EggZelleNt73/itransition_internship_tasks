@@ -18,13 +18,13 @@ class AzureBlobExtraction(FileExtractionStrategy):
         self.container_name = container_name
 
 
-    def _extract_yaml_from_steam(self, file_bytes: io.BytesIO) -> pd.DataFrame:
-        text_steam = io.TextIOWrapper(file_bytes, encoding="8-utf")
+    def _extract_yaml_from_stream(self, file_bytes: io.BytesIO) -> pd.DataFrame:
+        text_steam = io.TextIOWrapper(file_bytes, encoding="utf-8")
         raw_yaml_file = yaml.safe_load(text_steam)
         return pd.DataFrame(raw_yaml_file)
 
 
-    def _extract_parquet_from_steam(self, file_bytes: io.BytesIO) -> pd.DataFrame:
+    def _extract_parquet_from_stream(self, file_bytes: io.BytesIO) -> pd.DataFrame:
         return pd.read_parquet(file_bytes)
 
 
