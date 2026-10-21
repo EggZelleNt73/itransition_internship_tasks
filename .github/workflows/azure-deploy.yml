@@ -3,7 +3,7 @@ name: Build, Push to ACR, and Deploy to Azure Web App
 on:
   push:
     branches:
-      - main
+      - master
 
 env:
   ACR_LOGIN_SERVER: 'itransitionintrenshiptaskscontainerregistry.azurecr.io'
