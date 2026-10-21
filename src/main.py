@@ -16,14 +16,12 @@ def main():
         strategy = get_extraction_strategy()
         extracted_files = strategy.extract_raw_files()
 
-        logger.info("--- START DATA ALLOCATION KEY AUDIT ---")
         if not extracted_files:
             logger.warning("Extracted files structure is completely EMPTY!")
         for store, files in extracted_files.items():
             logger.info(f"Successfully processed Store target: '{store}'")
             logger.info(f" -> Found inner data file collection keys: {list(files.keys())}")
-        logger.info("--- END DATA ALLOCATION KEY AUDIT ---")
-        
+
         apply_transformation(extracted_files)
         df_daily_revenue = apply_aggregation(extracted_files, "compute_daily_revenue")
         df_amount_unique_users = apply_aggregation(extracted_files, "find_amount_of_unique_users")
@@ -110,4 +108,7 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except Exception as e:
+        logger.critical(f"Application failed to initialize: {e}")
