@@ -100,12 +100,19 @@ def main():
                 st.metric(label="Most Popular author name/s", value=most_popular_authors)
             
 
-    def render_ai_chat_area(extracted_files: StoreDataCollection):
+    def render_ai_chat_area(
+            df_daily_revenue, 
+            df_amount_unique_users, 
+            df_unique_sets_of_authors, 
+            df_most_popular_author, 
+            df_top_customer_by_spending, 
+            extracted_files: StoreDataCollection = {}
+            ):
         st.markdown("---")
         st.subheader("💬 Ask AI About Your Store Data")
 
         try:
-            agent = DataAppAgent(extracted_files)
+            agent = DataAppAgent(extracted_files, df_daily_revenue)
         except Exception as e:
             st.warning("⚠️ AI Chat is temporarily unavailable. Check environment variables.")
             return
@@ -138,7 +145,7 @@ def main():
     extracted_files = extract_raw_data()
     data_packages = apply_aggregations(extracted_files=extracted_files)
     load_dashboard(*data_packages, extracted_files=extracted_files)
-    render_ai_chat_area(extracted_files)
+    render_ai_chat_area(*data_packages, extracted_files=extracted_files)
 
 
 if __name__ == "__main__":
