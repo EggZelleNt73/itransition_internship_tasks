@@ -144,18 +144,21 @@ def main():
         if "chat_history" not in st.session_state:
             st.session_state.chat_history = []
 
-        for chat in st.session_state.chat_history:
-            with st.chat_message(chat["role"]):
-                st.markdown(chat["content"])
+        with st.container(height=550, border=True) as chat_history:
+            for chat in st.session_state.chat_history:
+                with st.chat_message(chat["role"]):
+                    st.markdown(chat["content"])
 
         if user_prompt := st.chat_input("Ask something like: What was the revenue for STORE1?"):
-            with st.chat_message("user"):
-                st.markdown(user_prompt)
             st.session_state.chat_history.append({"role": "user", "content": user_prompt})
 
-            with st.chat_message("assistant"):
-                with st.spinner("Analyzing metrics..."):
-                    ai_answer = agent.ask_agent(user_prompt)
+            with chat_history:
+                with st.chat_message("user"):
+                    st.markdown(user_prompt)
+
+                with st.chat_message("assistant"):
+                    with st.spinner("Analyzing metrics..."):
+                        ai_answer = agent.ask_agent(user_prompt)
                     st.markdown(ai_answer)
                     
             st.session_state.chat_history.append({"role": "assistant", "content": ai_answer})
