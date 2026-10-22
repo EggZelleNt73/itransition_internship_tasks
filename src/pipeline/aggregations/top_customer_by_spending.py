@@ -33,9 +33,10 @@ def top_customer_by_spending_func(dfs: dict[str, pd.DataFrame]) -> pd.DataFrame:
         .agg(total_spending=("paid_price", "sum"))
         .reset_index()
     )
-    top_spending_customer = customer_spending["total_spending"].round(2).max()
+    rounded_spending = customer_spending["total_spending"].round(2)
+    top_spending_customer = rounded_spending.max()
 
-    customer_spending = customer_spending.loc[customer_spending["total_spending"] == top_spending_customer].reset_index(drop=True)
+    customer_spending = customer_spending.loc[rounded_spending == top_spending_customer].reset_index(drop=True)
     customer_spending = customer_spending.merge(customer_details, how="left", on="master_user_id")
 
     return customer_spending
