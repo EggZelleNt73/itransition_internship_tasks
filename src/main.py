@@ -114,6 +114,7 @@ def main():
                 df_most_popular_author,
                 df_top_customer_by_spending,
                 extracted_files=extracted_files,
+                current_store=selected_store,
             )
             
 
@@ -123,7 +124,8 @@ def main():
             df_unique_sets_of_authors, 
             df_most_popular_author, 
             df_top_customer_by_spending, 
-            extracted_files: StoreDataCollection = {}
+            extracted_files: StoreDataCollection,
+            current_store: str,
             ):
         st.markdown("---")
         st.subheader("Ask AI About Your Store Data")
@@ -136,6 +138,7 @@ def main():
                 df_unique_sets_of_authors,
                 df_most_popular_author,
                 df_top_customer_by_spending,
+                current_store,
             )
         except Exception as e:
             st.warning("AI Chat is temporarily unavailable. Check environment variables.")
