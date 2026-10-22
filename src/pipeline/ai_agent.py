@@ -10,8 +10,9 @@ logger = get_logger(__name__)
 
 
 class DataAppAgent:
-    def __init__(self, extracted_files: StoreDataCollection):
+    def __init__(self, extracted_files: StoreDataCollection, df_daily_revenue: dict):
         self.extracted_files = extracted_files
+        self.df_daily_revenue = df_daily_revenue
 
         endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
         api_key = os.getenv("AZURE_OPENAI_API_KEY")
@@ -28,12 +29,11 @@ class DataAppAgent:
 
 
     def _get_revenue_tool(self, store_name: str) -> str:
-        df = apply_aggregation(self.extracted_files, "compute_daily_revenue")
-        target_key = store_name.lower().strip()
-        normalized_dfs = {k.lower().strip(): v for k, v in df.items()}
+        target_key = store_name.upper().strip()
+        normalized_revenue = {k.upper().strip(): v for k, v in self.df_daily_revenue.items()}
 
-        if target_key in normalized_dfs:
-            return normalized_dfs[target_key].to_json(orient="records")
+        if target_key in normalized_revenue:
+            return normalized_revenue[target_key].to_json(orient="records")
         return json.dumps({"error": f"Store mapping for '{store_name}' was not found in data allocation grids."})
 
 
