@@ -98,7 +98,7 @@ def main():
                 st.subheader("Most Popular Authors")
                 most_popular_authors = df_most_popular_author[selected_store]
                 st.metric(label="Most Popular author name/s", value=most_popular_authors)
-        return selected_store
+            
 
     def render_ai_chat_area(
             df_daily_revenue, 
@@ -106,8 +106,7 @@ def main():
             df_unique_sets_of_authors, 
             df_most_popular_author, 
             df_top_customer_by_spending, 
-            extracted_files: StoreDataCollection,
-            selected_store: str,
+            extracted_files: StoreDataCollection = {}
             ):
         st.markdown("---")
         st.subheader("💬 Ask AI About Your Store Data")
@@ -120,7 +119,6 @@ def main():
                 df_unique_sets_of_authors,
                 df_most_popular_author,
                 df_top_customer_by_spending,
-                selected_store,
             )
         except Exception as e:
             st.warning("⚠️ AI Chat is temporarily unavailable. Check environment variables.")
@@ -142,30 +140,8 @@ def main():
                 with st.spinner("Analyzing metrics..."):
                     ai_answer = agent.ask_agent(user_prompt)
                     st.markdown(ai_answer)
-                    if agent.filter_action_requested:
-                        if agent.last_filter_result is None:
-                            st.session_state.pop("ai_filter_result", None)
-                        else:
-                            st.session_state.ai_filter_result = agent.last_filter_result
                     
             st.session_state.chat_history.append({"role": "assistant", "content": ai_answer})
-
-    def render_ai_filter_result():
-        filter_result = st.session_state.get("ai_filter_result")
-        if filter_result is None:
-            return
-
-        st.markdown("---")
-        st.subheader("AI-filtered data")
-        st.caption(
-            f"{filter_result['row_count']} matching rows in "
-            f"{filter_result['store_name']} / {filter_result['dataset']} "
-            f"(column: {filter_result['column']}). Existing dashboard metrics are unchanged."
-        )
-        st.dataframe(filter_result["dataframe"], use_container_width=True, hide_index=True)
-        if st.button("Clear AI filter", key="clear_ai_filter"):
-            del st.session_state.ai_filter_result
-            st.rerun()
 
     st.set_page_config(
         page_title="Store Performance Dashboard",
@@ -175,13 +151,8 @@ def main():
 
     extracted_files = extract_raw_data()
     data_packages = apply_aggregations(extracted_files=extracted_files)
-    selected_store = load_dashboard(*data_packages, extracted_files=extracted_files)
-    render_ai_chat_area(
-        *data_packages,
-        extracted_files=extracted_files,
-        selected_store=selected_store,
-    )
-    render_ai_filter_result()
+    load_dashboard(*data_packages, extracted_files=extracted_files)
+    render_ai_chat_area(*data_packages, extracted_files=extracted_files)
 
 
 if __name__ == "__main__":
