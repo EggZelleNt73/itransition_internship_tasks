@@ -112,7 +112,14 @@ def main():
         st.subheader("💬 Ask AI About Your Store Data")
 
         try:
-            agent = DataAppAgent(extracted_files, df_daily_revenue)
+            agent = DataAppAgent(
+                extracted_files,
+                df_daily_revenue,
+                df_amount_unique_users,
+                df_unique_sets_of_authors,
+                df_most_popular_author,
+                df_top_customer_by_spending,
+            )
         except Exception as e:
             st.warning("⚠️ AI Chat is temporarily unavailable. Check environment variables.")
             return
