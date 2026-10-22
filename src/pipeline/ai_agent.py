@@ -109,6 +109,7 @@ class DataAppAgent:
         column: str | None = None,
         date_range: dict[str, str] | None = None,
         filters: list[dict[str, str]] | None = None,
+        group_by: list[str] | None = None,
     ) -> str:
         if not isinstance(store_name, str) or not store_name.strip():
             return json.dumps({"error": "A valid store_name is required."})
@@ -144,6 +145,26 @@ class DataAppAgent:
             })
 
         frame = dataframes[dataset].copy()
+        resolved_group_columns: list[str] = []
+        if group_by is not None:
+            if (
+                not isinstance(group_by, list)
+                or not group_by
+                or not all(isinstance(group, str) and group.strip() for group in group_by)
+            ):
+                return json.dumps({"error": "group_by must be a non-empty list of column names."})
+            if len(group_by) > 3:
+                return json.dumps({"error": "group_by supports at most three columns."})
+            for group_column in group_by:
+                resolved_group_column = self._resolve_column(frame, group_column)
+                if resolved_group_column is None:
+                    return json.dumps({
+                        "error": f"Group-by column '{group_column}' was not found in dataset '{dataset}'."
+                    })
+                if resolved_group_column in resolved_group_columns:
+                    return json.dumps({"error": "group_by cannot contain duplicate columns."})
+                resolved_group_columns.append(resolved_group_column)
+
         if date_range is not None:
             if not isinstance(date_range, dict):
                 return json.dumps({"error": "date_range must specify a column and date bounds."})
@@ -194,14 +215,6 @@ class DataAppAgent:
                 if not all(isinstance(value, str) and value.strip() for value in (
                     filter_column, filter_operator, filter_value
                 )):
-                    logger.info(
-                        "AI Agent calculated %s on %s.%s for store %s across %s rows",
-                        operation,
-                        dataset,
-                        column or "rows",
-                        target_store,
-                        len(frame),
-                    )
                     return json.dumps({
                         "error": "Each filter requires non-empty column, operator, and value."
                     })
@@ -228,45 +241,101 @@ class DataAppAgent:
                     })
                 frame = frame.loc[mask]
 
-        if operation == "count":
+        if operation == "count" and not resolved_group_columns:
             result: int | float = int(len(frame))
         else:
-            if not isinstance(column, str) or not column.strip():
+            if operation != "count" and (
+                not isinstance(column, str) or not column.strip()
+            ):
                 return json.dumps({
                     "error": f"column is required for the {operation} operation."
                 })
-            resolved_column = self._resolve_column(frame, column)
-            if resolved_column is None:
+            resolved_column = (
+                self._resolve_column(frame, column)
+                if operation != "count" and isinstance(column, str)
+                else None
+            )
+            if operation != "count" and resolved_column is None:
                 return json.dumps({
                     "error": f"Column '{column}' was not found in dataset '{dataset}'."
                 })
-            if operation == "distinct_count":
-                result = int(frame[resolved_column].nunique(dropna=True))
-            else:
-                numeric_values = pd.to_numeric(frame[resolved_column], errors="coerce").dropna()
-                if numeric_values.empty:
-                    return json.dumps({
-                        "error": (
-                            f"Column '{resolved_column}' has no numeric values to "
-                            f"calculate {operation}."
-                        )
-                    })
-                calculated = {
-                    "sum": numeric_values.sum,
-                    "mean": numeric_values.mean,
-                    "min": numeric_values.min,
-                    "max": numeric_values.max,
-                }[operation]()
-                result = calculated.item() if hasattr(calculated, "item") else calculated
 
-        return json.dumps({
+            if resolved_group_columns:
+                if operation == "count":
+                    grouped_values = frame.groupby(
+                        resolved_group_columns, dropna=False, sort=True
+                    ).size()
+                elif operation == "distinct_count":
+                    grouped_values = frame.groupby(
+                        resolved_group_columns, dropna=False, sort=True
+                    )[resolved_column].nunique(dropna=True)
+                else:
+                    numeric_values = pd.to_numeric(
+                        frame[resolved_column], errors="coerce"
+                    )
+                    if numeric_values.dropna().empty:
+                        return json.dumps({
+                            "error": (
+                                f"Column '{resolved_column}' has no numeric values to "
+                                f"calculate {operation}."
+                            )
+                        })
+                    grouped_frame = frame[resolved_group_columns].copy()
+                    grouped_frame["_calculation_value"] = numeric_values
+                    grouped = grouped_frame.groupby(
+                        resolved_group_columns, dropna=False, sort=True
+                    )["_calculation_value"]
+                    if operation == "sum":
+                        grouped_values = grouped.agg(
+                            lambda values: values.sum(min_count=1)
+                        )
+                    else:
+                        grouped_values = getattr(grouped, operation)()
+
+                grouped_result = grouped_values.rename("result").reset_index()
+                result = json.loads(grouped_result.to_json(orient="records"))
+            else:
+                if operation == "distinct_count":
+                    result = int(frame[resolved_column].nunique(dropna=True))
+                else:
+                    numeric_values = pd.to_numeric(
+                        frame[resolved_column], errors="coerce"
+                    ).dropna()
+                    if numeric_values.empty:
+                        return json.dumps({
+                            "error": (
+                                f"Column '{resolved_column}' has no numeric values to "
+                                f"calculate {operation}."
+                            )
+                        })
+                    calculated = {
+                        "sum": numeric_values.sum,
+                        "mean": numeric_values.mean,
+                        "min": numeric_values.min,
+                        "max": numeric_values.max,
+                    }[operation]()
+                    result = calculated.item() if hasattr(calculated, "item") else calculated
+
+        logger.info(
+            "AI Agent calculated %s on %s.%s for store %s across %s rows",
+            operation,
+            dataset,
+            column or "rows",
+            target_store,
+            len(frame),
+        )
+        response = {
             "store": target_store,
             "dataset": dataset,
             "operation": operation,
             "column": column if operation != "count" else None,
             "matching_rows": int(len(frame)),
             "result": result,
-        })
+        }
+        if resolved_group_columns:
+            response["group_by"] = resolved_group_columns
+            response["group_count"] = len(result)
+        return json.dumps(response)
 
 
     def ask_agent(self, user_question: str) -> str:
@@ -305,7 +374,8 @@ class DataAppAgent:
                     "Perform a calculation on a store's extracted orders, books, or users "
                     "data when no precomputed aggregation answers the question. Supports "
                     "count, distinct_count, sum, mean, min, and max. Can restrict rows to "
-                    "an inclusive date range or apply literal column filters. Never infer "
+                    "an inclusive date range, apply literal column filters, and group "
+                    "results by one or more columns. Never infer "
                     "a result without calling this tool."
                 ),
                 "parameters": {
@@ -345,6 +415,14 @@ class DataAppAgent:
                                 "required": ["column", "operator", "value"],
                             },
                         },
+                        "group_by": {
+                            "type": ["array", "null"],
+                            "items": {"type": "string"},
+                            "description": (
+                                "Optional columns to group by. Returns one result per "
+                                "unique combination, including null-valued groups."
+                            ),
+                        },
                     },
                     "required": ["store_name", "dataset", "operation"],
                 },
@@ -376,7 +454,8 @@ class DataAppAgent:
                 "calculate_from_extracted_data and use its returned result; do not estimate "
                 "or invent results. For order counts within a date range, select dataset "
                 "'orders', operation 'count', and the orders timestamp column. Date range "
-                "bounds are inclusive calendar dates. Only use supported operations and "
+                "bounds are inclusive calendar dates. Use group_by for questions asking "
+                "for results by one or more categories. Only use supported operations and "
                 "actual dataset columns. If a request cannot be represented by the "
                 "available calculation tool or the tool returns an error, explain the "
                 "limitation/error to the user. Available store dataset columns and data "
@@ -410,6 +489,7 @@ class DataAppAgent:
                             column=args.get("column"),
                             date_range=args.get("date_range"),
                             filters=args.get("filters"),
+                            group_by=args.get("group_by"),
                         )
                         follow_up_messages.append({
                             "role": "tool",
