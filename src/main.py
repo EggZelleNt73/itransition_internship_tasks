@@ -54,50 +54,67 @@ def main():
         available_stores = [store for store in extracted_files.keys()]
         selected_store = st.sidebar.selectbox("Select a store", available_stores)
 
-        st.title(f"{selected_store} Executive Summary")
-        st.markdown("---")
+        dashboard_column, chat_column = st.columns([3, 1], gap="large")
 
-        tab1, tab2, tab3 = st.tabs(["Financial Performance", "User Analytics", "Author Insights"])
+        with dashboard_column:
+            st.title(f"{selected_store} Executive Summary")
+            st.markdown("---")
 
-        with tab1:
-            st.subheader("Revenue Overview")
-            fig = px.line(
-                df_daily_revenue[selected_store],
-                x="date",
-                y="paid_price",
-                markers=True
+            tab1, tab2, tab3 = st.tabs([
+                "Financial Performance",
+                "User Analytics",
+                "Author Insights",
+            ])
+
+            with tab1:
+                st.subheader("Revenue Overview")
+                fig = px.line(
+                    df_daily_revenue[selected_store],
+                    x="date",
+                    y="paid_price",
+                    markers=True
                 )
-            fig.update_layout(template="plotly_white")
-            st.plotly_chart(fig, use_container_width=True)
+                fig.update_layout(template="plotly_white")
+                st.plotly_chart(fig, use_container_width=True)
 
-            st.subheader("Top 5 Revenue Days")
-            top_5_days = df_daily_revenue[selected_store].nlargest(5, "paid_price")
-            st.dataframe(top_5_days, use_container_width=True, hide_index=True)
+                st.subheader("Top 5 Revenue Days")
+                top_5_days = df_daily_revenue[selected_store].nlargest(5, "paid_price")
+                st.dataframe(top_5_days, use_container_width=True, hide_index=True)
 
-        with tab2:
-            col1, col2 = st.columns([1, 2])
-            with col1:
-                unique_users_count = df_amount_unique_users[selected_store]
-                st.metric(label="Total Unique Users", value=f"{unique_users_count}")
-            with col2:
-                st.subheader("Top Spending Customer")
-                top_buyer_aliases = df_top_customer_by_spending[selected_store]["user_names"]
-                if len(top_buyer_aliases) > 0:
-                    top_buyer_aliases = top_buyer_aliases[0] if isinstance(top_buyer_aliases[0], list) else top_buyer_aliases
-                else:
-                    top_buyer_aliases = []
-                st.markdown("Aliases")
-                st.write(f"`{'`, `'.join(top_buyer_aliases)}`")
+            with tab2:
+                col1, col2 = st.columns([1, 2])
+                with col1:
+                    unique_users_count = df_amount_unique_users[selected_store]
+                    st.metric(label="Total Unique Users", value=f"{unique_users_count}")
+                with col2:
+                    st.subheader("Top Spending Customer")
+                    top_buyer_aliases = df_top_customer_by_spending[selected_store]["user_names"]
+                    if len(top_buyer_aliases) > 0:
+                        top_buyer_aliases = top_buyer_aliases[0] if isinstance(top_buyer_aliases[0], list) else top_buyer_aliases
+                    else:
+                        top_buyer_aliases = []
+                    st.markdown("Aliases")
+                    st.write(f"`{'`, `'.join(top_buyer_aliases)}`")
 
-        with tab3:
-            col1, col2 = st.columns(2)
-            with col1:
-                unique_author_sets = df_unique_sets_of_authors[selected_store]
-                st.metric(label="Unique Author Collections / Sets", value=unique_author_sets)
-            with col2:
-                st.subheader("Most Popular Authors")
-                most_popular_authors = df_most_popular_author[selected_store]
-                st.metric(label="Most Popular author name/s", value=most_popular_authors)
+            with tab3:
+                col1, col2 = st.columns(2)
+                with col1:
+                    unique_author_sets = df_unique_sets_of_authors[selected_store]
+                    st.metric(label="Unique Author Collections / Sets", value=unique_author_sets)
+                with col2:
+                    st.subheader("Most Popular Authors")
+                    most_popular_authors = df_most_popular_author[selected_store]
+                    st.metric(label="Most Popular author name/s", value=most_popular_authors)
+
+        with chat_column:
+            render_ai_chat_area(
+                df_daily_revenue,
+                df_amount_unique_users,
+                df_unique_sets_of_authors,
+                df_most_popular_author,
+                df_top_customer_by_spending,
+                extracted_files=extracted_files,
+            )
             
 
     def render_ai_chat_area(
@@ -109,7 +126,7 @@ def main():
             extracted_files: StoreDataCollection = {}
             ):
         st.markdown("---")
-        st.subheader("💬 Ask AI About Your Store Data")
+        st.subheader("Ask AI About Your Store Data")
 
         try:
             agent = DataAppAgent(
@@ -121,7 +138,7 @@ def main():
                 df_top_customer_by_spending,
             )
         except Exception as e:
-            st.warning("⚠️ AI Chat is temporarily unavailable. Check environment variables.")
+            st.warning("AI Chat is temporarily unavailable. Check environment variables.")
             return
 
         if "chat_history" not in st.session_state:
@@ -152,7 +169,6 @@ def main():
     extracted_files = extract_raw_data()
     data_packages = apply_aggregations(extracted_files=extracted_files)
     load_dashboard(*data_packages, extracted_files=extracted_files)
-    render_ai_chat_area(*data_packages, extracted_files=extracted_files)
 
 
 if __name__ == "__main__":
