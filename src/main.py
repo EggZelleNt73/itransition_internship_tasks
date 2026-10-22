@@ -144,7 +144,8 @@ def main():
         if "chat_history" not in st.session_state:
             st.session_state.chat_history = []
 
-        with st.container(height=550, border=True) as chat_history:
+        chat_history_container = st.container(height=550, border=True)
+        with chat_history_container:
             for chat in st.session_state.chat_history:
                 with st.chat_message(chat["role"]):
                     st.markdown(chat["content"])
@@ -152,7 +153,7 @@ def main():
         if user_prompt := st.chat_input("Ask something like: What was the revenue for STORE1?"):
             st.session_state.chat_history.append({"role": "user", "content": user_prompt})
 
-            with chat_history:
+            with chat_history_container:
                 with st.chat_message("user"):
                     st.markdown(user_prompt)
 
