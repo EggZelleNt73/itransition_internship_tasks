@@ -62,7 +62,7 @@ class DataAppAgent:
                 tools=tools
             )
 
-            message = response.choiced[0].message
+            message = response.choices[0].message
 
             if message.tool_calls:
                 for tool_call in message.tool_calls:
