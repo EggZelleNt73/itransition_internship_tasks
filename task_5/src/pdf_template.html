@@ -1,0 +1,43 @@
+<html>
+<head>
+    <style>
+        @page { size: A4; margin: 20mm; }
+        body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #333; line-height: 1.5; }
+        .header-container { border-bottom: 3px solid #f39c12; padding-bottom: 10px; margin-bottom: 30px; }
+        .corp-title { font-size: 26px; font-weight: bold; letter-spacing: 2px; text-transform: uppercase; color: #111; }
+        .metric-table { width: 100%; border-collapse: collapse; margin-top: 15px; margin-bottom: 30px; }
+        .metric-table th, .metric-table td { border: 1px solid #ddd; padding: 10px; text-align: left; }
+        .metric-table th { background-color: #f4f6f7; font-weight: bold; }
+        .anomaly-card { border-left: 4px solid #e74c3c; background-color: #fdf2f2; padding: 15px; margin-bottom: 15px; page-break-inside: avoid; }
+        .section-header { font-size: 18px; color: #2c3e50; font-weight: bold; margin-top: 25px; text-transform: uppercase; }
+    </style>
+</head>
+<body>
+    <div class="header-container">
+        <div class="corp-title">WEYLAND-YUTANI CORP — OPERATIONS REPORT</div>
+        <div>Asset Target Identifier: {{ mine_id }} | Security Clearance: Level 4 Executive</div>
+    </div>
+    
+    <div class="section-header">Baseline Asset Performance Statistics</div>
+    <table class="metric-table">
+        <tr><th>Statistical Operational Measure</th><th>Calculated Value Profile</th></tr>
+        <tr><td>Mean Daily Extraction Output</td><td>{{ mean }} tons</td></tr>
+        <tr><td>Standard Deviation Variation (σ)</td><td>{{ std }}</td></tr>
+        <tr><td>Median (Q2 Base Horizon)</td><td>{{ median }} tons</td></tr>
+        <tr><td>Interquartile Range Verification (IQR)</td><td>{{ iqr }}</td></tr>
+    </table>
+
+    <div class="section-header">Identified Systemic Anomalies Logs</div>
+    {% if anomalies|length > 0 %}
+        {% for anomaly in anomalies %}
+        <div class="anomaly-card">
+            <strong>Incident Boundary Horizon:</strong> {{ anomaly.date }}<br/>
+            <strong>Calculated Output Metric:</strong> {{ anomaly.value }} tons<br/>
+            <strong>Algorithmic Variance Flag Type:</strong> {{ method }} System Trigger Check
+        </div>
+        {% endfor %}
+    {% else %}
+        <p>System Operating Balance Confirmed: No structural deviations observed under given threshold levels.</p>
+    {% endif %}
+</body>
+</html>

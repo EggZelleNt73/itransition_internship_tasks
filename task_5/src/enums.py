@@ -1,0 +1,8 @@
+from enum import StrEnum
+
+
+class EnvVariables(StrEnum):
+    APP_ENVIRONMENT = "APP_ENVIRONMENT"
+    GOOGLE_SHEET_URL = "GOOGLE_SHEET_URL"
+    LOGGER_LEVEL = "LOGGER_LEVEL"
+    PDF_TEMPLATE_NAME = "PDF_TEMPLATE_NAME"

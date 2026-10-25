@@ -1,0 +1,8 @@
+class AnomalyDetectionConstants:
+    DEFAULT_IQR_K_VALUE: float = 1.5
+    DEFAULT_ZSCORE_THRESHOLD: float = 3.0
+    DEFAULT_MA_DISTANCE_WINDOW:int = 7
+    DEFAULT_MA_THRESHOLD: float = 20.0
+    DEFAULT_MA_ROLLING_MIN_PERIOD:int = 1
+    HUNDRED_PERCENT: float = 100.0
+    DEFAULT_GRUBBS_ALPHA_VALUE = 0.05
