@@ -1,7 +1,9 @@
 name: Task 5 Pipeline (Multi-Branch)
 
 on:
-  push:
+  pull_request:
+    types:
+      - closed
     branches:
       - develop
       - test
@@ -15,6 +17,7 @@ env:
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
+    if: github.event.pull_request.merged == true
     steps:
       - name: Checkout Source Code
         uses: actions/checkout@v4
@@ -28,11 +31,11 @@ jobs:
         
       - name: Build and Push Docker Image
         run: |
-          docker build --no-cache -t ${{ env.ACR_LOGIN_SERVER }}/task5:${{ github.ref_name }} ./task_5
-          docker push ${{ env.ACR_LOGIN_SERVER }}/task5:${{ github.ref_name }}
+          docker build --no-cache -t ${{ env.ACR_LOGIN_SERVER }}/task5:${{ github.base_ref }} ./task_5
+          docker push ${{ env.ACR_LOGIN_SERVER }}/task5:${{ github.base_ref }}
 
       - name: Deploy to Azure Web App (Development)
-        if: github.ref_name == 'develop'
+        if: github.base_ref == 'develop'
         uses: azure/webapps-deploy@v3
         with:
           app-name: 'task5-dev-webapp'
@@ -40,7 +43,7 @@ jobs:
           images: '${{ env.ACR_LOGIN_SERVER }}/task5:develop'
 
       - name: Deploy to Azure Web App (Testing)
-        if: github.ref_name == 'test'
+        if: github.base_ref == 'test'
         uses: azure/webapps-deploy@v3
         with:
           app-name: 'task5-test-webapp'
@@ -48,7 +51,7 @@ jobs:
           images: '${{ env.ACR_LOGIN_SERVER }}/task5:test'
 
       - name: Deploy to Azure Web App (Production)
-        if: github.ref_name == 'production'
+        if: github.base_ref == 'production'
         uses: azure/webapps-deploy@v3
         with:
           app-name: 'task5-prod-webapp'
