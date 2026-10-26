@@ -15,6 +15,7 @@ from src.pipeline.aggregation.anomally_detection import (
 )
 from pathlib import Path
 from src.enums import EnvVariables
+import base64
 
 
 def load_web_page(data: pd.DataFrame):
@@ -87,6 +88,9 @@ def load_web_page(data: pd.DataFrame):
     if st.button("Generate Detailed Corporate PDF Audit Report"):
         html_template_path = Path(__file__).parent / os.getenv(EnvVariables.PDF_TEMPLATE_NAME)
         if html_template_path.exists():
+            img_bytes = fig.to_image(format="png", width=800, height=450, scale=2)
+            encoded_img = base64.b64encode(img_bytes).decode("utf-8")
+            chart_data_uri = f"data:image/png;base64,{encoded_img}"
             anomaly_list = [{"date": str(dt.date()), "value": f"{val:.2f}"} for dt, val in y_series[outlier_mask].items()]
             html_template = html_template_path.read_text(encoding="utf-8")
             template_render = jinja2.Template(html_template).render(
@@ -96,7 +100,8 @@ def load_web_page(data: pd.DataFrame):
                 median=f"{y_series.median():.2f}",
                 iqr=f"{iqr_delta:.2f}",
                 method=anomaly_method,
-                anomalies=anomaly_list
+                anomalies=anomaly_list,
+                chart_image_uri = chart_data_uri
             )
         pdf_bytes = weasyprint.HTML(string=template_render).write_pdf()
 
