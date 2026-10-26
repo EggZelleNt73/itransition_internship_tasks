@@ -37,7 +37,7 @@ jobs:
 
       - name: Deploy to Azure Web App (Development)
         if: github.base_ref == 'develop'
-        uses: azure/webapps-container-deploy@v1
+        uses: azure/webapps-deploy@v2
         with:
           app-name: '${{ env.AZURE_WEBAPP_NAME }}-development'
           publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE_TASK5_DEV }}
@@ -45,7 +45,7 @@ jobs:
 
       - name: Deploy to Azure Web App (Testing)
         if: github.base_ref == 'test'
-        uses: azure/webapps-container-deploy@v1
+        uses: azure/webapps-deploy@v2
         with:
           app-name: '${{ env.AZURE_WEBAPP_NAME }}-test'
           publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE_TASK5_TEST }}
@@ -53,7 +53,7 @@ jobs:
 
       - name: Deploy to Azure Web App (Production)
         if: github.base_ref == 'production'
-        uses: azure/webapps-container-deploy@v1
+        uses: azure/webapps-deploy@v2
         with:
           app-name: '${{ env.AZURE_WEBAPP_NAME }}-production'
           publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE_TASK5_PROD }}
