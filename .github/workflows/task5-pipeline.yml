@@ -13,7 +13,7 @@ on:
 
 env:
   ACR_LOGIN_SERVER: 'itransitionintrenshiptaskscontainerregistry.azurecr.io'
-  AZURE_WEBAPP_NAME: 'minesAnalysisDashboard-test'
+  AZURE_WEBAPP_NAME: 'minesAnalysisDashboard'
 
 jobs:
   build-and-deploy:
@@ -39,7 +39,7 @@ jobs:
         if: github.base_ref == 'develop'
         uses: azure/webapps-deploy@v3
         with:
-          app-name: ${{ env.AZURE_WEBAPP_NAME }}
+          app-name: '${{ env.AZURE_WEBAPP_NAME }}-development'
           publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE_TASK5_DEV }}
           images: '${{ env.ACR_LOGIN_SERVER }}/task5:develop'
 
@@ -47,7 +47,7 @@ jobs:
         if: github.base_ref == 'test'
         uses: azure/webapps-deploy@v3
         with:
-          app-name: ${{ env.AZURE_WEBAPP_NAME }}
+          app-name: '${{ env.AZURE_WEBAPP_NAME }}-test'
           publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE_TASK5_TEST }}
           images: '${{ env.ACR_LOGIN_SERVER }}/task5:test'
 
@@ -55,6 +55,6 @@ jobs:
         if: github.base_ref == 'production'
         uses: azure/webapps-deploy@v3
         with:
-          app-name: ${{ env.AZURE_WEBAPP_NAME }}
+          app-name: '${{ env.AZURE_WEBAPP_NAME }}-production'
           publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE_TASK5_PROD }}
           images: '${{ env.ACR_LOGIN_SERVER }}/task5:production'
