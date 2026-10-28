@@ -21,6 +21,7 @@ COPY --from=builder /app/.venv /app/.venv
 COPY src/ ./src/
 COPY ./templates ./templates
 COPY ./static ./static
+COPY ./sql ./sql
 
 EXPOSE 8000
 

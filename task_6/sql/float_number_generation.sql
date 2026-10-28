@@ -1,3 +1,5 @@
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
 -- Stored Procedure for Uniform Float Generation
 CREATE OR REPLACE PROCEDURE faker.proc_get_random_float(
     IN seed_str TEXT, 
