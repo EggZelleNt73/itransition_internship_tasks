@@ -141,6 +141,22 @@ button {
     opacity: 0.82;
 }
 
+#benchmarkBtn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+}
+
+.benchmark-progress {
+    display: flex;
+}
+
+.benchmark-progress[hidden],
+#benchmarkResult[hidden] {
+    display: none;
+}
+
 .benchmark-spinner {
     display: inline-block;
     width: 1rem;
@@ -150,6 +166,10 @@ button {
     border-top-color: #99f6e4;
     border-radius: 50%;
     animation: benchmark-spin 700ms linear infinite;
+}
+
+.benchmark-spinner[hidden] {
+    display: none;
 }
 
 @keyframes benchmark-spin {
