@@ -1,0 +1,60 @@
+name: Task 6 Pipeline
+
+on:
+  pull_request:
+    types:
+      - closed
+    branches:
+      - develop
+      - test
+      - production
+    paths:
+      - 'task_6/**'
+
+env:
+  ACR_LOGIN_SERVER: 'itransitionintrenshiptaskscontainerregistry.azurecr.io'
+  AZURE_WEBAPP_NAME: 'userEngineGenerator'
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.merged == true
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+      
+      - name: Log in to Azure Container Registry
+        uses: azure/docker-login@v2
+        with:
+          login-server: ${{ env.ACR_LOGIN_SERVER }}
+          username: ${{ secrets.ACR_USERNAME }}
+          password: ${{ secrets.ACR_PASSWORD }}
+      
+      - name: Build and Push Docker Image
+        run: |
+          docker build --no-cache -t ${{ env.ACR_LOGIN_SERVER }}/task6:${{ github.sha }} ./task_6
+          docker push ${{ env.ACR_LOGIN_SERVER }}/task6:${{ github.sha }}
+      
+      - name: Deploy to Azure Web App (Development)
+        if: github.base_ref == 'develop'
+        uses: azure/webapps-container-deploy@v1
+        with:
+          app-name: '${{ env.AZURE_WEBAPP_NAME }}-development'
+          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE_TASK6_DEV }}
+          images: '${{ env.ACR_LOGIN_SERVER }}/task6:${{ github.sha }}'
+      
+      - name: Deploy to Azure Web App (Testing)
+        if: github.base_ref == 'test'
+        uses: azure/webapps-container-deploy@v1
+        with:
+          app-name: '${{ env.AZURE_WEBAPP_NAME }}-test'
+          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE_TASK6_TEST }}
+          images: '${{ env.ACR_LOGIN_SERVER }}/task6:${{ github.sha }}'
+      
+      - name: Deploy to Azure Web App (Production)
+        if: github.base_ref == 'production'
+        uses: azure/webapps-container-deploy@v1
+        with:
+          app-name: '${{ env.AZURE_WEBAPP_NAME }}-production'
+          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE_TASK6_PROD }}
+          images: '${{ env.ACR_LOGIN_SERVER }}/task6:${{ github.sha }}'
