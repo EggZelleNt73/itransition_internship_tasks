@@ -1,0 +1,23 @@
+services:
+  web_app_dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: web-app
+    image: itransition_internship_task6
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    volumes:
+      - ./src:/app/src/
+      - ./templates:/app/templates
+      - ./static:/app/static
+      - ./sql:/app/sql
+    networks:
+      - local_db_network
+    command: uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload
+
+networks:
+  local_db_network:
+    driver: bridge
