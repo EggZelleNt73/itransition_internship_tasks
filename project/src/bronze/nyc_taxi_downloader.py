@@ -5,7 +5,6 @@ from pathlib import Path
 import httpx
 from tqdm import tqdm
 
-
 from src.common.config import settings
 from src.common.logger import logger
 
