@@ -4,6 +4,7 @@ from pathlib import Path
 from openaq import OpenAQ
 from openaq.core.exceptions import APIError
 import orjson
+import time
 
 from src.common.config import settings
 from src.common.logger import logger
@@ -11,6 +12,7 @@ from src.common.constants import (
     NYC_LATITUDE,
     NYC_LONGITUDE
 )
+from src.common.timer import timeit
 
 
 class OpenAQBronzeClient:
@@ -24,98 +26,99 @@ class OpenAQBronzeClient:
         self.client = OpenAQ(api_key=settings.OPENAQ_API_KEY)
         self.target_dir = Path(settings.OPENAQ_RAW_TARGET_DIR)
         self.target_dir.mkdir(parents=True, exist_ok=True)
+        self.target_parameters = {"pm25", "no2", "o3"}
 
-
-    def fetch_nyc_daily_measurements(self, target_date: datetime.date) -> str:
+    
+    @timeit
+    def fetch_nyc_measurements_range(self, start_date: datetime.date, end_date: datetime.date) -> str:
         """
-        Queries OpenAQ for all sensor readings within the NYC region 
-        for a specific date and dumps the verbatim JSON response.
+        Fetches a multi-day window of NYC air quality logs, filtering strictly 
+        for core target pollutants (PM2.5, NO2, O3) to minimize API calls.
         """
 
-        date_str = target_date.strftime("%Y-%m-%d")
-        filename = f"openaq_nyc_{date_str}.json"
+        start_str = start_date.strftime("%Y-%m-%d")
+        end_str = end_date.strftime("%Y-%m-%d")
+        filename = f"openaq_nyc_{start_str}_to_{end_str}.jsonl"
         output_path = self.target_dir / filename
 
         if output_path.exists() and output_path.stat().st_size > 0:
             logger.info(f"File already cached locally: {filename}")
             return str(output_path)
 
-        date_from = f"{date_str}T00:00:00Z"
-        date_to = f"{date_str}T23:59:59Z"
-
-        logger.info(f"Identifying active NYC locations for date: {date_str}")
-
+        logger.info(f"Identifying active NYC locations for window: {start_str} to {end_str}")
+        
         try:
             locations_response = self.client.locations.list(
                 coordinates=(NYC_LATITUDE, NYC_LONGITUDE),
-                radius=25_000,
+                radius=25000,
                 limit=100
             )
-
+            
             locations = locations_response.results
             if not locations:
-                logger.warning(f"No operational OpenAQ locations discovered near NYC coordinates.")
+                logger.warning("No operational OpenAQ locations discovered near NYC coordinates.")
                 return ""
 
-            all_raw_strings = []
-
-            for location in locations:
-                logger.info(f"Fetching sensor metrics for location ID {location.id}: {location.name}")
-
-                sensors_response = self.client.locations.sensors(location.id)
-                sensors = sensors_response.results
-
-                for sensor in sensors:
-                    page = 1
-                    limit = 1000
-                    while True:
-                        measurements_response = self.client.measurements.list(
-                            sensor.id,
-                            "measurements",
-                            datetime_from=date_from,
-                            datetime_to=date_to,
-                            limit=limit,
-                            page=page
-                        )
-
-                        measurements = measurements_response.results
-                        if not measurements:
-                            break
-
-                        batch_json_str = measurements_response.json(encoder=orjson)
-                        all_raw_strings.append(batch_json_str)
-
-                        if len(measurements) < limit:
-                            break
-                        page += 1
-
-            if not all_raw_strings:
-                logger.warning(f"No metrics or measurements recorded on {date_str} across NYC sensors.")
-                return ""
-
-            consolidated_records = []
-            for json_str in all_raw_strings:
-                data_chunk = orjson.loads(json_str)
-                if isinstance(data_chunk, list):
-                    consolidated_records.extend(data_chunk)
-                elif isinstance(data_chunk, dict) and "results" in data_chunk:
-                    consolidated_records.extend(data_chunk["results"])
-
+            records_written = 0
             with open(output_path, "wb") as f:
-                f.write(orjson.dumps(consolidated_records, option=orjson.OPT_INDENT_2))
+                for location in locations:
+                    sensors_response = self.client.locations.sensors(location.id)
+                    sensors = sensors_response.results
+                    
+                    for sensor in sensors:
+                        param_name = getattr(sensor.parameter, "name", "").lower()
+                        if param_name not in self.target_parameters:
+                            continue
 
-            logger.info(f"Successfully landed raw bronze payload: {filename} ({len(consolidated_records)} records)")
+                        logger.info(f"Pulling {param_name.upper()} from location {location.id} (Sensor {sensor.id})")
+                        page = 1
+                        limit = 1000
+                        
+                        while True:
+                            measurements_response = self.client.measurements.list(
+                                sensor.id,
+                                "measurements",
+                                datetime_from=start_str,
+                                datetime_to=end_str,
+                                limit=limit,
+                                page=page
+                            )
+                            
+                            measurements = measurements_response.results
+                            if not measurements:
+                                break
+                            
+                            batch_data = orjson.loads(measurements_response.json(encoder=orjson))
+                            items = batch_data.get("results", []) if isinstance(batch_data, dict) else batch_data
+                            
+                            for item in items:
+                                f.write(orjson.dumps(item) + b"\n")
+                                records_written += 1
+                            
+                            if len(measurements) < limit:
+                                break
+                            page += 1
+
+            if records_written == 0:
+                if output_path.exists():
+                    output_path.unlink()
+                logger.warning(f"No target pollutant measurements recorded between {start_str} and {end_str}.")
+                return ""
+            
+            logger.info(f"Successfully landed raw bronze payload: {filename} ({records_written} records)")
             return str(output_path)
+
         except APIError as api_err:
-            logger.error(f"OpenAQ API Exception encountered on {date_str}: {api_err}")
+            logger.error(f"OpenAQ API Exception encountered: {api_err}")
             return ""
         except Exception as err:
-            logger.error(f"Unexpected processing system breakdown on {date_str}: {err}")
+            logger.error(f"Unexpected processing system breakdown: {err}")
             return ""
 
 
 if __name__ == "__main__":
     import datetime
     ingest_worker = OpenAQBronzeClient()
-    yesterday = datetime.date.today() - datetime.timedelta(days=1)
-    ingest_worker.fetch_nyc_daily_measurements(yesterday)
+    start_date = datetime.date.today() - datetime.timedelta(days=30)
+    end_date = datetime.date.today() - datetime.timedelta(days=1)
+    ingest_worker.fetch_nyc_measurements_range(start_date, end_date)
