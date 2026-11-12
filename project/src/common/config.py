@@ -23,7 +23,10 @@ class Config:
     OPENAQ_WATERMARK_FILENAME: str = os.getenv("NYC_WATERMARK_FILENAME", "_watermark.json")
     
     WORLDBANK_API_URL: str = os.getenv("WORLDBANK_API_URL", "https://worldbank.org")
+    WORLDBANK_RAW_TARGET_DIR: str = os.getenv("WORLDBANK_RAW_TARGET_DIR", "data/raw/worldbank")
     ECB_FX_URL: str = os.getenv("ECB_FX_URL", "https://europa.eu")
+    ECB_FX_RAW_TARGET_DIR: str = os.getenv("ECB_FX_RAW_TARGET_DIR", "data/raw/ecb_fx")
+    ECB_FX_WATERMARK_FILENAME: str = os.getenv("ECB_FX_WATERMARK_FILENAME", "_watermark.json")
 
 
 settings = Config()
