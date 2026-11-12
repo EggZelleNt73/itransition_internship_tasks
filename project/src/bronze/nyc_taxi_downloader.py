@@ -4,6 +4,7 @@ import datetime
 from pathlib import Path
 import httpx
 from tqdm import tqdm
+import json
 
 from src.common.config import settings
 from src.common.logger import logger
@@ -22,28 +23,52 @@ def calculate_safe_end_date() -> datetime.date:
     return safe_month
 
 
+def update_watermark(target_dir: str, ingested_date: datetime.date) -> None:
+    """
+    Atomically updates the watermark file with the latest successfully processed month.
+    """
+
+    watermark_path = Path(target_dir) / settings.NYC_WATERMARK_FILENAME
+    watermark_path.parent.mkdir(parents=True, exist_ok=True)
+    payload = {"last_ingested_date": ingested_date.strftime("%Y-%m")}
+    with open(watermark_path, "w", encoding="utf-8") as f:
+        json.dump(payload, f, indent=2)
+
+
 def get_latest_ingested_date(target_dir: str) -> datetime.date | None:
     """
-    Scans the storage directory to find the latest successfully downloaded 
-    NYC Taxi dataset month. Returns None if directory is empty.
+    Reads the latest ingested date watermark file.
+    Falls back to a one-time directory scan if the watermark is missing.
     """
 
     path = Path(target_dir)
+    watermark_path = path / settings.NYC_WATERMARK_FILENAME
+    if watermark_path.exists():
+        try:
+            with open(watermark_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                year, month = map(int, data["last_ingested_date"].split("-"))
+                return datetime.date(year, month, 1)
+        except Exception as err:
+            logger.warning(f"Corrupted watermark file detected, rebuilding from directory: {err}")
+
     if not path.exists():
         return None
 
     pattern = re.compile(rf"{settings.NYC_FILE_PREFIX}_(\d{{4}})-(\d{{2}})\.parquet")
-    discovered_dates = []
+    latest_date = max(
+        (
+            datetime.date(int(m.group(1)), int(m.group(2)), 1)
+            for f in path.glob("*.parquet")
+            if (m := pattern.match(f.name))
+        ),
+        default=None
+    )
 
-    for file in path.glob("*.parquet"):
-        match = pattern.match(file.name)
-        if match:
-            year, month = map(int, match.groups())
-            discovered_dates.append(datetime.date(year, month, 1))
+    if latest_date:
+        update_watermark(target_dir, latest_date)
 
-    if discovered_dates:
-        return max(discovered_dates)
-    return None
+    return latest_date
 
 
 def download_monthly_taxi_data(year: int, month: int, target_dir: str) -> str:
@@ -120,8 +145,11 @@ def run_incremental_taxi_ingestion(fallback_year: int = settings.FALLBACK_OLDEST
         return
     
     logger.info(f"Executing incremental sync window: {current_date.strftime('%Y-%m')} to {end_date.strftime('%Y-%m')}")
-    while current_date < end_date:
-        download_monthly_taxi_data(current_date.year, current_date.month, target_dir)
+    while current_date <= end_date:
+        saved_path = download_monthly_taxi_data(current_date.year, current_date.month, target_dir)
+
+        if saved_path:
+            update_watermark(target_dir, current_date)
 
         if current_date.month == 12:
             current_date = datetime.date(current_date.year + 1, 1, 1)
@@ -132,4 +160,4 @@ def run_incremental_taxi_ingestion(fallback_year: int = settings.FALLBACK_OLDEST
 
 
 if __name__ == "__main__":
-    run_incremental_taxi_ingestion(fallback_year=datetime.date.today().year, fallback_month=8)
+    run_incremental_taxi_ingestion(fallback_year=datetime.date.today().year, fallback_month=datetime.date.today().month - 3)

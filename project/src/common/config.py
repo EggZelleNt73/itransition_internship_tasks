@@ -15,6 +15,7 @@ class Config:
     NYC_FILE_PREFIX: str = os.getenv("NYC_FILE_PREFIX", "yellow_tripdata")
     FALLBACK_OLDEST_TAXI_DATA_DATE: int = 2009
     NYC_TAXI_RAW_TARGET_DIR: str = os.getenv("NYC_TAXI_RAW_TARGET_DIR", "data/raw/taxi")
+    NYC_WATERMARK_FILENAME: str = os.getenv("NYC_WATERMARK_FILENAME", "_watermark.json")
 
     OPENAQ_API_URL: str = os.getenv("OPENAQ_API_URL", "https://openaq.org")
     OPENAQ_API_KEY: str = os.getenv("OPENAQ_API_KEY", "")
