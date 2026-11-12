@@ -20,6 +20,7 @@ class Config:
     OPENAQ_API_URL: str = os.getenv("OPENAQ_API_URL", "https://openaq.org")
     OPENAQ_API_KEY: str = os.getenv("OPENAQ_API_KEY", "")
     OPENAQ_RAW_TARGET_DIR = os.getenv("OPENAQ_RAW_TARGET_DIR", "data/raw/air_quality")
+    OPENAQ_WATERMARK_FILENAME: str = os.getenv("NYC_WATERMARK_FILENAME", "_watermark.json")
     
     WORLDBANK_API_URL: str = os.getenv("WORLDBANK_API_URL", "https://worldbank.org")
     ECB_FX_URL: str = os.getenv("ECB_FX_URL", "https://europa.eu")

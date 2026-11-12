@@ -4,7 +4,7 @@ from pathlib import Path
 from openaq import OpenAQ
 from openaq.core.exceptions import APIError
 import orjson
-import time
+import calendar
 
 from src.common.config import settings
 from src.common.logger import logger
@@ -27,8 +27,42 @@ class OpenAQBronzeClient:
         self.target_dir = Path(settings.OPENAQ_RAW_TARGET_DIR)
         self.target_dir.mkdir(parents=True, exist_ok=True)
         self.target_parameters = {"pm25", "no2", "o3"}
+        self.watermark_path = self.target_dir / settings.OPENAQ_WATERMARK_FILENAME
 
-    
+
+    def _calculate_safe_end_month(self) -> datetime.date:
+        """
+        Calculates the first day of the last completed calendar month
+        """
+
+        today = datetime.date.today()
+        first_of_this_month = today.replace(day=1)
+        previous_month = first_of_this_month - datetime.timedelta(days=1)
+        return previous_month.replace(day=1)
+
+
+    def _update_watermark(self, ingested_date: datetime.date) -> None:
+        """Updates _watermark.json with the latest successfully processed month."""
+
+        payload = {"last_ingested_date": ingested_date.strftime("%Y-%m")}
+        with open(self.watermark_path, "w", encoding="utf-8") as f:
+            json.dump(payload, f, indent=2)
+
+
+    def _get_latest_ingested_month(self) -> datetime.date | None:
+        """Reads the latest ingested date from _watermark.json."""
+
+        if self.watermark_path.exists():
+            try:
+                with open(self.watermark_path, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                    year, month = map(int, data["last_ingested_date"].split("-"))
+                    return datetime.date(year, month, 1)
+            except Exception as err:
+                logger.warning(f"Corrupted OpenAQ watermark detected, ignoring: {err}")
+        return None
+
+
     @timeit
     def fetch_nyc_measurements_range(self, start_date: datetime.date, end_date: datetime.date) -> str:
         """
@@ -116,9 +150,44 @@ class OpenAQBronzeClient:
             return ""
 
 
+    def run_incremental_air_measurements_ingestion(self, fallback_year: int, fallback_month: int) -> None:
+        """
+        Automatically detects state context and incrementally syncs monthly 
+        air quality batches up to the last completed calendar month.
+        """
+
+        latest_month = self._get_latest_ingested_month()
+        end_month = self._calculate_safe_end_month()
+
+        if latest_month:
+            if latest_month == 12:
+                current_month = datetime.date(latest_month.year + 1, 1, 1)
+            else:
+                current_month = datetime.date(latest_month.year, latest_month.month + 1, 1)
+            logger.info(f"Found OpenAQ checkpoint. Last ingested month: {latest_month.strftime('%Y-%m')}")
+        else:
+            current_month = datetime.date(fallback_year, fallback_month, 1)
+            logger.info(f"No OpenAQ watermark found. Cold starting from: {current_month.strftime('%Y-%m')}")
+
+        if current_month > end_month:
+            logger.info("OpenAQ data is completely up to date! No new months to ingest.")
+            return
+
+        while current_month <= end_month:
+            _, last_day = calendar.monthrange(current_month.year, current_month.month)
+            month_end_date = datetime.date(current_month.year, current_month.month, last_day)
+
+            saved_path = self.fetch_nyc_measurements_range(current_month, month_end_date)
+            if saved_path:
+                self._update_watermark(current_month)
+
+            if current_month == 12:
+                current_month = datetime.date(current_month.year + 1, 1, 1)
+            else:
+                current_month = datetime.date(current_month.year, current_month.month + 1, 1)
+
+
 if __name__ == "__main__":
     import datetime
     ingest_worker = OpenAQBronzeClient()
-    start_date = datetime.date.today() - datetime.timedelta(days=30)
-    end_date = datetime.date.today() - datetime.timedelta(days=1)
-    ingest_worker.fetch_nyc_measurements_range(start_date, end_date)
+    ingest_worker.run_incremental_air_measurements_ingestion(fallback_year=datetime.date.today().year, fallback_month=datetime.date.today().month - 1)
