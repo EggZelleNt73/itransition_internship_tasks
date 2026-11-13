@@ -8,6 +8,10 @@ import json
 
 from src.common.config import settings
 from src.common.logger import logger
+from src.common.watermark import (
+    read_watermark,
+    write_watermark
+)
 
 
 def calculate_safe_end_date() -> datetime.date:
@@ -23,55 +27,7 @@ def calculate_safe_end_date() -> datetime.date:
     return safe_month
 
 
-def update_watermark(target_dir: str, ingested_date: datetime.date) -> None:
-    """
-    Atomically updates the watermark file with the latest successfully processed month.
-    """
-
-    watermark_path = Path(target_dir) / settings.NYC_WATERMARK_FILENAME
-    watermark_path.parent.mkdir(parents=True, exist_ok=True)
-    payload = {"last_ingested_date": ingested_date.strftime("%Y-%m")}
-    with open(watermark_path, "w", encoding="utf-8") as f:
-        json.dump(payload, f, indent=2)
-
-
-def get_latest_ingested_date(target_dir: str) -> datetime.date | None:
-    """
-    Reads the latest ingested date watermark file.
-    Falls back to a one-time directory scan if the watermark is missing.
-    """
-
-    path = Path(target_dir)
-    watermark_path = path / settings.NYC_WATERMARK_FILENAME
-    if watermark_path.exists():
-        try:
-            with open(watermark_path, "r", encoding="utf-8") as f:
-                data = json.load(f)
-                year, month = map(int, data["last_ingested_date"].split("-"))
-                return datetime.date(year, month, 1)
-        except Exception as err:
-            logger.warning(f"Corrupted watermark file detected, rebuilding from directory: {err}")
-
-    if not path.exists():
-        return None
-
-    pattern = re.compile(rf"{settings.NYC_FILE_PREFIX}_(\d{{4}})-(\d{{2}})\.parquet")
-    latest_date = max(
-        (
-            datetime.date(int(m.group(1)), int(m.group(2)), 1)
-            for f in path.glob("*.parquet")
-            if (m := pattern.match(f.name))
-        ),
-        default=None
-    )
-
-    if latest_date:
-        update_watermark(target_dir, latest_date)
-
-    return latest_date
-
-
-def download_monthly_taxi_data(year: int, month: int, target_dir: str) -> str:
+def download_monthly_taxi_data(year: int, month: int, target_dir: Path) -> str:
     """
     Streams a single monthly NYC Yellow Taxi Parquet file from CloudFront 
     safely into the target directory with progress metrics.
@@ -126,8 +82,12 @@ def run_incremental_taxi_ingestion(fallback_year: int = settings.FALLBACK_OLDEST
     up to the current safe calendar boundaries.
     """
 
-    target_dir = settings.NYC_TAXI_RAW_TARGET_DIR
-    latest_date = get_latest_ingested_date(target_dir)
+    target_dir = Path(settings.NYC_TAXI_RAW_TARGET_DIR)
+    latest_date = read_watermark(
+        target_dir / settings.NYC_WATERMARK_FILENAME,
+        key="last_ingested_date",
+        date_format="%Y-%m"
+    )
     end_date = calculate_safe_end_date()
 
     if latest_date:
@@ -149,7 +109,12 @@ def run_incremental_taxi_ingestion(fallback_year: int = settings.FALLBACK_OLDEST
         saved_path = download_monthly_taxi_data(current_date.year, current_date.month, target_dir)
 
         if saved_path:
-            update_watermark(target_dir, current_date)
+            write_watermark(
+                target_dir / settings.NYC_WATERMARK_FILENAME, 
+                current_date,
+                key="last_ingested_date",
+                date_format="%Y-%m"
+                )
 
         if current_date.month == 12:
             current_date = datetime.date(current_date.year + 1, 1, 1)

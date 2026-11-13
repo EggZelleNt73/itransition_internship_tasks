@@ -24,6 +24,8 @@ class Config:
     
     WORLDBANK_API_URL: str = os.getenv("WORLDBANK_API_URL", "https://worldbank.org")
     WORLDBANK_RAW_TARGET_DIR: str = os.getenv("WORLDBANK_RAW_TARGET_DIR", "data/raw/worldbank")
+    WORLDBANK_WATERMARK_FILENAME: str = os.getenv("WORLDBANK_WATERMARK_FILENAME", "_watermark.json")
+
     ECB_FX_URL: str = os.getenv("ECB_FX_URL", "https://europa.eu")
     ECB_FX_RAW_TARGET_DIR: str = os.getenv("ECB_FX_RAW_TARGET_DIR", "data/raw/ecb_fx")
     ECB_FX_WATERMARK_FILENAME: str = os.getenv("ECB_FX_WATERMARK_FILENAME", "_watermark.json")

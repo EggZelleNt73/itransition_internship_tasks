@@ -13,6 +13,10 @@ from src.common.constants import (
     NYC_LONGITUDE
 )
 from src.common.timer import timeit
+from src.common.watermark import (
+    read_watermark,
+    write_watermark
+)
 
 
 class OpenAQBronzeClient:
@@ -39,28 +43,6 @@ class OpenAQBronzeClient:
         first_of_this_month = today.replace(day=1)
         previous_month = first_of_this_month - datetime.timedelta(days=1)
         return previous_month.replace(day=1)
-
-
-    def _update_watermark(self, ingested_date: datetime.date) -> None:
-        """Updates _watermark.json with the latest successfully processed month."""
-
-        payload = {"last_ingested_date": ingested_date.strftime("%Y-%m")}
-        with open(self.watermark_path, "w", encoding="utf-8") as f:
-            json.dump(payload, f, indent=2)
-
-
-    def _get_latest_ingested_month(self) -> datetime.date | None:
-        """Reads the latest ingested date from _watermark.json."""
-
-        if self.watermark_path.exists():
-            try:
-                with open(self.watermark_path, "r", encoding="utf-8") as f:
-                    data = json.load(f)
-                    year, month = map(int, data["last_ingested_date"].split("-"))
-                    return datetime.date(year, month, 1)
-            except Exception as err:
-                logger.warning(f"Corrupted OpenAQ watermark detected, ignoring: {err}")
-        return None
 
 
     @timeit
@@ -156,7 +138,11 @@ class OpenAQBronzeClient:
         air quality batches up to the last completed calendar month.
         """
 
-        latest_month = self._get_latest_ingested_month()
+        latest_month = read_watermark(
+            watermark_path=self.watermark_path, 
+            key="last_ingested_date",
+            date_format="%Y-%m"
+            )
         end_month = self._calculate_safe_end_month()
 
         if latest_month:
@@ -179,7 +165,12 @@ class OpenAQBronzeClient:
 
             saved_path = self.fetch_nyc_measurements_range(current_month, month_end_date)
             if saved_path:
-                self._update_watermark(current_month)
+                write_watermark(
+                    self.watermark_path,
+                    current_month,
+                    key="last_ingested_date",
+                    date_format="%Y-%m"
+                    )
 
             if current_month == 12:
                 current_month = datetime.date(current_month.year + 1, 1, 1)

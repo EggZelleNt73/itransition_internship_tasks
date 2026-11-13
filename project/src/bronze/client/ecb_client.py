@@ -6,6 +6,10 @@ import httpx
 from src.common.config import settings
 from src.common.logger import logger
 from src.common.timer import timeit
+from src.common.watermark import (
+    read_watermark,
+    write_watermark
+)
 
 
 class ECBBronzeClient:
@@ -18,32 +22,17 @@ class ECBBronzeClient:
         self.watermark_path = self.target_dir / settings.ECB_FX_WATERMARK_FILENAME
 
 
-    def _get_latest_ingested_date(self) -> datetime.date | None:
-        if self.watermark_path.exists():
-            try:
-                with open(self.watermark_path, "r", encoding="utf-8") as f:
-                    data = json.load(f)
-                    return datetime.date.fromisoformat(data["last_ingested_date"])
-            except Exception as err:
-                logger.warning(f"Corrupted ECB watermark detected, ignoring: {err}")
-        return None
-
-
-    def _update_watermark(self, ingested_date: datetime.date) -> None:
-        """Updates _watermark.json with the latest successfully processed date."""
-
-        payload = {"last_ingested_date": ingested_date.strftime("%Y-%m-%d")}
-        with open(self.watermark_path, "w", encoding="utf-8") as f:
-            json.dump(payload, f, indent=2)
-
-
     @timeit
     def run_incremental_ingestion(self, fallback_start_date: str) -> str:
         """
         Fetches daily USD/EUR FX CSV records from the last watermark up to yesterday.
         """
 
-        latest_date = self._get_latest_ingested_date()
+        latest_date = read_watermark(
+            self.watermark_path,
+            key="last_ingested_date",
+            date_format="%Y-%m-%d"
+        )
         end_date = datetime.date.today() - datetime.timedelta(days=1)
 
         if latest_date:
@@ -74,7 +63,12 @@ class ECBBronzeClient:
 
                 if response.status_code == 404 or not response.text.strip():
                     logger.info(f"No ECB FX trading data published between {start_date} and {end_date}.")
-                    self._update_watermark(end_date)
+                    write_watermark(
+                        self.watermark_path,
+                        end_date,
+                        key="last_ingested_date",
+                        date_format="%Y-%m-%d"
+                        )
                     return ""
 
                 response.raise_for_status()
@@ -82,7 +76,12 @@ class ECBBronzeClient:
                 with open(output_path, "w", encoding="utf-8", newline="") as f:
                     f.write(response.text)
 
-                self._update_watermark(end_date)
+                write_watermark(
+                    self.watermark_path,
+                    end_date,
+                    key="last_ingested_date",
+                    date_format="%Y-%m-%d"
+                    )
                 logger.info(f"Successfully landed ECB FX CSV payload: {filename}")
                 return str(output_path)
         except httpx.HTTPStatusError as err:
