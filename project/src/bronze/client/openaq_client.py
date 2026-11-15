@@ -5,6 +5,7 @@ from openaq import OpenAQ
 from openaq.core.exceptions import APIError
 import orjson
 import calendar
+import time
 
 from src.common.config import settings
 from src.common.logger import logger
@@ -43,6 +44,22 @@ class OpenAQBronzeClient:
         self.watermark_path = self.target_dir / f"_openaq_{self.city_slug}_{settings.OPENAQ_WATERMARK_FILENAME}"
 
 
+    def _call_with_retry(self, func, *args, max_retries: int = 3, **kwargs):
+        """Executes an SDK call with exponential backoff for transient network errors."""
+        for attempt in range(1, max_retries + 1):
+            try:
+                return func(*args, **kwargs)
+            except Exception as err:
+                if attempt == max_retries:
+                    raise
+                wait_time = 2 ** attempt
+                logger.warning(
+                    f"Transient API error (attempt {attempt}/{max_retries}): {err}. "
+                    f"Retrying in {wait_time}s..."
+                )
+                time.sleep(wait_time)
+
+    
     def _calculate_safe_end_month(self) -> datetime.date:
         """
         Calculates the first day of the last completed calendar month
@@ -64,15 +81,20 @@ class OpenAQBronzeClient:
         end_str = end_date.strftime("%Y-%m-%d")
         filename = f"openaq_{self.city_slug}_{start_str}_to_{end_str}.jsonl"
         output_path = self.target_dir / filename
+        temp_path = self.target_dir / f"{filename}.tmp"
 
         if output_path.exists() and output_path.stat().st_size > 0:
             logger.info(f"File already cached locally: {filename}")
             return str(output_path)
 
         logger.info(f"Identifying active {self.city_slug.upper()} locations for window: {start_str} to {end_str}")
+
+        if temp_path.exists():
+            temp_path.unlink()
         
         try:
-            locations_response = self.client.locations.list(
+            locations_response = self._call_with_retry(
+                self.client.locations.list,
                 coordinates=self.coordinates,
                 radius=self.radius,
                 limit=100
@@ -84,9 +106,9 @@ class OpenAQBronzeClient:
                 return ""
 
             records_written = 0
-            with open(output_path, "wb") as f:
+            with open(temp_path, "wb") as f:
                 for location in locations:
-                    sensors_response = self.client.locations.sensors(location.id)
+                    sensors_response = self._call_with_retry(self.client.locations.sensors, location.id)
                     sensors = sensors_response.results
                     
                     for sensor in sensors:
@@ -99,7 +121,8 @@ class OpenAQBronzeClient:
                         limit = 1000
                         
                         while True:
-                            measurements_response = self.client.measurements.list(
+                            measurements_response = self._call_with_retry(
+                                self.client.measurements.list,
                                 sensor.id,
                                 "measurements",
                                 datetime_from=start_str,
@@ -124,10 +147,12 @@ class OpenAQBronzeClient:
                             page += 1
 
             if records_written == 0:
-                if output_path.exists():
-                    output_path.unlink()
+                if temp_path.exists():
+                    temp_path.unlink()
                 logger.warning(f"No target pollutant measurements recorded between {start_str} and {end_str}.")
                 return ""
+
+            temp_path.replace(output_path)
             
             logger.info(f"Successfully landed raw bronze payload: {filename} ({records_written} records)")
             return str(output_path)
@@ -136,9 +161,10 @@ class OpenAQBronzeClient:
             logger.error(f"OpenAQ API Exception encountered: {api_err}")
             return ""
         except Exception as err:
-            logger.error(f"Unexpected processing system breakdown: {err}")
+            if temp_path.exists():
+                temp_path.unlink()
+            logger.error(f"Ingestion aborted and rolled back staging file for {filename}: {err}")
             return ""
-
 
     def run_incremental_air_measurements_ingestion(self, fallback_year: int, fallback_month: int) -> None:
         """
