@@ -15,11 +15,16 @@ from src.common.watermark import (
 class ECBBronzeClient:
     """Incrementally ingests daily USD/EUR spot exchange rates from the ECB API."""
 
-    def __init__(self):
-        self.base_url = settings.ECB_FX_URL
+    def __init__(self, base_currency: str = "USD", quote_currency: str = "EUR"):
+        self.base_currency = base_currency.upper()
+        self.quote_currency = quote_currency.upper()
+        self.pair_tag = f"{self.base_currency}_{self.quote_currency}"
+
+        base_url = settings.ECB_FX_URL
+        self.endpoint = f"{base_url}/D.{self.base_currency}.{self.quote_currency}.SP00.A"
         self.target_dir = Path(settings.ECB_FX_RAW_TARGET_DIR)
         self.target_dir.mkdir(parents=True, exist_ok=True)
-        self.watermark_path = self.target_dir / settings.ECB_FX_WATERMARK_FILENAME
+        self.watermark_path = self.target_dir / f"_ecb_{self.pair_tag}_{settings.ECB_FX_WATERMARK_FILENAME}"
 
 
     @timeit
@@ -52,14 +57,14 @@ class ECBBronzeClient:
             "endPeriod": end_date.isoformat()
         }
 
-        filename = f"ecb_usd_eur_{start_date.isoformat()}_to_{end_date.isoformat()}.csv"
+        filename = f"ecb_{self.pair_tag}_{start_date.isoformat()}_to_{end_date.isoformat()}.csv"
         output_path = self.target_dir / filename
 
-        logger.info(f"Requesting ECB FX rates for window: {start_date} to {end_date}")
+        logger.info(f"Requesting ECB {self.pair_tag} rates for window: {start_date} to {end_date}")
 
         try:
             with httpx.Client(timeout=30.0) as client:
-                response = client.get(self.base_url, params=params)
+                response = client.get(self.endpoint, params=params)
 
                 if response.status_code == 404 or not response.text.strip():
                     logger.info(f"No ECB FX trading data published between {start_date} and {end_date}.")
@@ -93,6 +98,6 @@ class ECBBronzeClient:
 
 
 if __name__ == "__main__":
-    client = ECBBronzeClient()
+    client = ECBBronzeClient("USD", "EUR")
     client.run_incremental_ingestion((datetime.date.today() - datetime.timedelta(days=30)).strftime("%Y-%m-%d"))
         
