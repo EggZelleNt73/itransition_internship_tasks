@@ -17,11 +17,16 @@ from src.common.watermark import (
 class WorldBankBronzeClient:
     """Fetches yearly USA GDP macro-economic indicator data from World Bank API."""
 
-    def __init__(self):
-        self.base_url = settings.WORLDBANK_API_URL
+    def __init__(self, country_code: str = "USA", indicator: str = "NY.GDP.MKTP.CD"):
+        self.country_code = country_code.upper()
+        self.indicator = indicator
+        self.entity_tag = f"{self.country_code}_{self.indicator}"
+
+        base_url = settings.WORLDBANK_API_URL
+        self.endpoint = f"{base_url}/country/{self.country_code}/indicator/{self.indicator}"
         self.target_dir = Path(settings.WORLDBANK_RAW_TARGET_DIR)
         self.target_dir.mkdir(parents=True, exist_ok=True)
-        self.watermark_path = self.target_dir / settings.WORLDBANK_WATERMARK_FILENAME
+        self.watermark_path = self.target_dir / f"_wb_{self.entity_tag}_{settings.WORLDBANK_WATERMARK_FILENAME}"
 
 
     @timeit
@@ -54,14 +59,14 @@ class WorldBankBronzeClient:
             "date": f"{start_year}:{current_year}",
             "per_page": 100
         }
-        filename = f"worldbank_usa_gdp_{start_year}_to_{current_year}.json"
+        filename = f"worldbank_{self.entity_tag}_{start_year}_to_{current_year}.json"
         output_path = self.target_dir / filename
 
-        logger.info(f"Fetching USA GDP data from World Bank for window: {start_year} to {current_year}")
+        logger.info(f"Fetching {self.entity_tag} from World Bank for window: {start_year} to {current_year}")
 
         try:
             with httpx.Client(timeout=30.0) as client:
-                response = client.get(self.base_url, params=params)
+                response = client.get(self.endpoint, params=params)
                 response.raise_for_status()
 
                 raw_payload = response.json()
@@ -104,5 +109,5 @@ class WorldBankBronzeClient:
 
 
 if __name__ == "__main__":
-    client = WorldBankBronzeClient()
+    client = WorldBankBronzeClient("USA", "NY.GDP.MKTP.CD")
     client.run_incremental_ingestion(2020)
