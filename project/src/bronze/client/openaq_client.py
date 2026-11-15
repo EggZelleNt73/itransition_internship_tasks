@@ -22,16 +22,25 @@ from src.common.watermark import (
 class OpenAQBronzeClient:
     """API Client to ingest raw air quality payloads from OpenAQ."""
 
-    def __init__(self):
+    def __init__(self, 
+                 city_name: str = "nyc", 
+                 coordinates: tuple[float, float] = (NYC_LATITUDE, NYC_LONGITUDE),
+                 radius: int = 25_000,
+                 target_parameters: set[str] | None = None
+                ):
         if not settings.OPENAQ_API_KEY:
             logger.error("OpenAQ API Key missing in environment variables")
             raise ValueError("OPENAQ_API_KEY must be populated")
 
+        self.city_slug = city_name.lower()
+        self.coordinates = coordinates
+        self.radius = radius
+        self.target_parameters = target_parameters or {"pm25", "no2", "o3"}
+
         self.client = OpenAQ(api_key=settings.OPENAQ_API_KEY)
         self.target_dir = Path(settings.OPENAQ_RAW_TARGET_DIR)
         self.target_dir.mkdir(parents=True, exist_ok=True)
-        self.target_parameters = {"pm25", "no2", "o3"}
-        self.watermark_path = self.target_dir / settings.OPENAQ_WATERMARK_FILENAME
+        self.watermark_path = self.target_dir / f"_openaq_{self.city_slug}_{settings.OPENAQ_WATERMARK_FILENAME}"
 
 
     def _calculate_safe_end_month(self) -> datetime.date:
@@ -46,33 +55,32 @@ class OpenAQBronzeClient:
 
 
     @timeit
-    def fetch_nyc_measurements_range(self, start_date: datetime.date, end_date: datetime.date) -> str:
+    def fetch_measurements_range(self, start_date: datetime.date, end_date: datetime.date) -> str:
         """
-        Fetches a multi-day window of NYC air quality logs, filtering strictly 
-        for core target pollutants (PM2.5, NO2, O3) to minimize API calls.
+        Fetches a multi-day window air quality logs.
         """
 
         start_str = start_date.strftime("%Y-%m-%d")
         end_str = end_date.strftime("%Y-%m-%d")
-        filename = f"openaq_nyc_{start_str}_to_{end_str}.jsonl"
+        filename = f"openaq_{self.city_slug}_{start_str}_to_{end_str}.jsonl"
         output_path = self.target_dir / filename
 
         if output_path.exists() and output_path.stat().st_size > 0:
             logger.info(f"File already cached locally: {filename}")
             return str(output_path)
 
-        logger.info(f"Identifying active NYC locations for window: {start_str} to {end_str}")
+        logger.info(f"Identifying active {self.city_slug.upper()} locations for window: {start_str} to {end_str}")
         
         try:
             locations_response = self.client.locations.list(
-                coordinates=(NYC_LATITUDE, NYC_LONGITUDE),
-                radius=25000,
+                coordinates=self.coordinates,
+                radius=self.radius,
                 limit=100
             )
             
             locations = locations_response.results
             if not locations:
-                logger.warning("No operational OpenAQ locations discovered near NYC coordinates.")
+                logger.warning(f"No operational OpenAQ locations discovered near {self.city_slug.upper()} location.")
                 return ""
 
             records_written = 0
@@ -163,7 +171,7 @@ class OpenAQBronzeClient:
             _, last_day = calendar.monthrange(current_month.year, current_month.month)
             month_end_date = datetime.date(current_month.year, current_month.month, last_day)
 
-            saved_path = self.fetch_nyc_measurements_range(current_month, month_end_date)
+            saved_path = self.fetch_measurements_range(current_month, month_end_date)
             if saved_path:
                 write_watermark(
                     self.watermark_path,
@@ -180,5 +188,5 @@ class OpenAQBronzeClient:
 
 if __name__ == "__main__":
     import datetime
-    ingest_worker = OpenAQBronzeClient()
+    ingest_worker = OpenAQBronzeClient("nyc", (NYC_LATITUDE, NYC_LONGITUDE), 25_000)
     ingest_worker.run_incremental_air_measurements_ingestion(fallback_year=datetime.date.today().year, fallback_month=datetime.date.today().month - 1)
