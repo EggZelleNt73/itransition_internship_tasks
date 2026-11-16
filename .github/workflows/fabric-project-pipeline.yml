@@ -1,0 +1,29 @@
+name: Fabric Project CI
+
+on:
+  push:
+    paths:
+      - 'project/**'
+  pull_request:
+    paths:
+      - 'project/**'
+
+jobs:
+  validate-python:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: project
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+
+      - name: Set up Python & sync dependencies
+        run: uv sync
+
+      - name: Verify syntax and imports
+        run: uv run python -m compileall src
