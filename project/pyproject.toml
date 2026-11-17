@@ -8,6 +8,8 @@ dependencies = [
     "httpx>=0.28.1",
     "openaq>=1.2.0",
     "orjson>=3.13.0",
+    "pyarrow>=26.0.1",
+    "pyspark>=4.3.0",
     "python-dotenv>=1.2.4",
     "tqdm>=4.70.1",
 ]

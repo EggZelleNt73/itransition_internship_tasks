@@ -137,8 +137,19 @@ class OpenAQBronzeClient:
                             
                             batch_data = orjson.loads(measurements_response.json(encoder=orjson))
                             items = batch_data.get("results", []) if isinstance(batch_data, dict) else batch_data
-                            
+
+                            lat = getattr(location.coordinates, "latitude", None) if location.coordinates else None
+                            lon = getattr(location.coordinates, "longitude", None) if location.coordinates else None
+
                             for item in items:
+                                item["_ingestion_meta"] = {
+                                    "city": self.city_slug,
+                                    "location_id": location.id,
+                                    "location_name": location.name,
+                                    "sensor_id": sensor.id,
+                                    "latitude": lat,
+                                    "longitude": lon,
+                                }
                                 f.write(orjson.dumps(item) + b"\n")
                                 records_written += 1
                             
