@@ -63,7 +63,9 @@ class ECBBronzeClient:
         logger.info(f"Requesting ECB {self.pair_tag} rates for window: {start_date} to {end_date}")
 
         try:
-            with httpx.Client(timeout=30.0) as client:
+            transport = httpx.HTTPTransport(local_address="0.0.0.0", retries=3)
+            headers = {"User-Agent": "Mozilla/5.0 (DataEngineeringPipeline/1.0)"}
+            with httpx.Client(transport=transport, headers=headers, timeout=60.0) as client:
                 response = client.get(self.endpoint, params=params)
 
                 if response.status_code == 404 or not response.text.strip():
