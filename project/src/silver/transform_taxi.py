@@ -11,6 +11,7 @@ from pyspark.sql.types import (
 from src.common.config import settings
 from src.common.logger import logger
 from src.common.timer import timeit
+from src.common.paths import to_spark_path
 
 
 def clean_taxi_dataframe(df: DataFrame) -> DataFrame:
@@ -63,10 +64,11 @@ def clean_taxi_dataframe(df: DataFrame) -> DataFrame:
 
 
 @timeit
-def run_silver_taxi_transform(spark: SparkSession, bronze_path: str) -> None:
-    logger.info(f"Reading raw NYC Taxi Parquet files from: {bronze_path}")
+def run_silver_taxi_transform(spark: SparkSession, taxi_path: str) -> None:
+    taxi_spark_path = f"{to_spark_path(taxi_path).rstrip("/")}/*.parquet"
+    logger.info(f"Reading raw NYC Taxi Parquet files from: {taxi_spark_path}")
 
-    raw_df = spark.read.parquet(bronze_path)
+    raw_df = spark.read.parquet(taxi_spark_path)
     silver_df = clean_taxi_dataframe(raw_df)
 
     logger.info(f"Writing Silver Delta table: {settings.SILVER_TAXI_TABLE}")

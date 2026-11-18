@@ -10,6 +10,7 @@ from pyspark.sql.types import (
 from src.common.config import settings
 from src.common.logger import logger
 from src.common.timer import timeit
+from src.common.paths import to_spark_path
 
 
 def clean_openaq_dataframe(df: DataFrame) -> DataFrame:
@@ -44,10 +45,12 @@ def clean_openaq_dataframe(df: DataFrame) -> DataFrame:
 
 
 @timeit
-def run_silver_openaq_transform(spark: SparkSession, bronze_path: str) -> None:
-    logger.info(f"Reading raw OpenAQ JSONL files from: {bronze_path}")
+def run_silver_openaq_transform(spark: SparkSession, openqa_path: str) -> None:
+
+    openaq_spark_path = f"{to_spark_path(openqa_path).rstrip("/")}/*.jsonl"
+    logger.info(f"Reading raw OpenAQ JSONL files from: {openaq_spark_path}")
     
-    raw_df = spark.read.json(bronze_path)
+    raw_df = spark.read.json(openaq_spark_path)
     silver_df = clean_openaq_dataframe(raw_df)
 
     logger.info(f"Writing Silver Delta table: {settings.SILVER_AIR_QUALITY_TABLE}")
