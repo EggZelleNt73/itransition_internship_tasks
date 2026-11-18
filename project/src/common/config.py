@@ -35,6 +35,7 @@ class Config:
     ECB_FX_WATERMARK_FILENAME: str = os.getenv("ECB_FX_WATERMARK_FILENAME", "_watermark.json")
 
     SILVER_MACRO_TABLE: str = os.getenv("SILVER_MACRO_TABLE", "silver_macro_economic")
+    SILVER_WATERMARKS_PATH: str = os.getenv("SILVER_WATERMARKS_PATH", "data/silver/watermarks")
 
 
 settings = Config()

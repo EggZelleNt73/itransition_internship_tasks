@@ -17,6 +17,10 @@ from src.common.config import settings
 from src.common.logger import logger
 from src.common.timer import timeit
 from src.common.paths import to_spark_path
+from src.common.watermark import (
+    read_watermark,
+    write_watermark
+)
 
 
 def clean_taxi_dataframe(df: DataFrame) -> DataFrame:
@@ -102,19 +106,29 @@ def clean_taxi_dataframe(df: DataFrame) -> DataFrame:
 
 
 @timeit
-def run_silver_taxi_transform(spark: SparkSession, taxi_path: str) -> None:
-    parquet_files = sorted(Path(taxi_path).glob("*.parquet"))
-    if not parquet_files:
+def run_silver_taxi_transform(spark: SparkSession, taxi_path: str, watermark_path: str) -> None:
+    watermark_path = Path(watermark_path) / "_silver_taxi_watermark.json"
+    all_parquet_files = sorted(Path(taxi_path).glob("yellow_tripdata_*.parquet"))
+    if not all_parquet_files:
         logger.warning(f"No NYC Taxi Parquet files found in {taxi_path}.")
         return
 
-    schema_buckets: dict[str, list[str]] = defaultdict(list)
-    for pf in parquet_files:
-        schema_sig = str(pq.read_schema(pf))
-        spark_file_path = to_spark_path(str(pf))
-        schema_buckets[schema_sig].append(spark_file_path)
+    last_processed_file = read_watermark(watermark_path, key="last_processed_file")
+    if last_processed_file and spark.catalog.tableExists(settings.SILVER_TAXI_TABLE):
+        pending_files = [pf for pf in all_parquet_files if pf.name > last_processed_file]
+    else:
+        pending_files = all_parquet_files
 
-    logger.info(f"Grouped {len(parquet_files)} Parquet files into {len(schema_buckets)} distinct physical schemas.")
+    if not pending_files:
+        logger.info("Silver Taxi table is already up to date. No new Parquet files to process.")
+        return
+
+    logger.info(f"Found {len(pending_files)} new NYC Taxi Parquet file(s) to process.")
+
+    schema_buckets: dict[str, list[str]] = defaultdict(list)
+    for pf in pending_files:
+        schema_sig = str(pq.read_schema(pf))
+        schema_buckets[schema_sig].append(to_spark_path(str(pf)))
 
     normalized_dfs = []
     for idx, file_group in enumerate(schema_buckets.values(), start=1):
@@ -124,12 +138,24 @@ def run_silver_taxi_transform(spark: SparkSession, taxi_path: str) -> None:
 
     silver_df = reduce(lambda df1, df2: df1.unionByName(df2), normalized_dfs)
 
-    logger.info(f"Writing Silver Delta table: {settings.SILVER_TAXI_TABLE}")
-    (
-        silver_df.write.format("delta")
-        .mode("overwrite")
-        .option("overwriteSchema", "true")
-        .partitionBy("trip_year", "trip_month")
-        .saveAsTable(settings.SILVER_TAXI_TABLE)
-    )
-    logger.info(f"Successfully materialized {settings.SILVER_TAXI_TABLE}.")
+    logger.info(f"Incrementally updating Silver Delta table: {settings.SILVER_TAXI_TABLE}")
+    spark.conf.set("spark.sql.sources.partitionOverwriteMode", "dynamic")
+    if spark.catalog.tableExists(settings.SILVER_TAXI_TABLE):
+        (
+            silver_df.write.format("delta")
+            .mode("overwrite")
+            .partitionBy("trip_year", "trip_month")
+            .saveAsTable(settings.SILVER_TAXI_TABLE)
+        )
+    else:
+        (
+            silver_df.write.format("delta")
+            .mode("overwrite")
+            .option("overwriteSchema", "true")
+            .partitionBy("trip_year", "trip_month")
+            .saveAsTable(settings.SILVER_TAXI_TABLE)
+        )
+
+    latest_file_name = pending_files[-1].name
+    write_watermark(watermark_path, latest_file_name, key="last_processed_file")
+    logger.info(f"Successfully updated {settings.SILVER_TAXI_TABLE} up to {latest_file_name}.")
