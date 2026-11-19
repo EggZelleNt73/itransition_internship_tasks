@@ -37,5 +37,10 @@ class Config:
     SILVER_MACRO_TABLE: str = os.getenv("SILVER_MACRO_TABLE", "silver_macro_economic")
     SILVER_WATERMARKS_PATH: str = os.getenv("SILVER_WATERMARKS_PATH", "data/silver/watermarks")
 
+    GOLD_DIM_DATE_TABLE: str = os.getenv("GOLD_DIM_DATE_TABLE", "gold_dim_date")
+    GOLD_DIM_MACRO_TABLE: str = os.getenv("GOLD_DIM_MACRO_TABLE", "gold_dim_macro")
+    GOLD_DIM_LOCATION_TABLE: str = os.getenv("GOLD_DIM_LOCATION_TABLE", "gold_dim_location")
+    GOLD_FACT_MOBILITY_ENV_TABLE: str = os.getenv("GOLD_FACT_MOBILITY_ENV_TABLE", "gold_fact_mobility_env")
+
 
 settings = Config()
