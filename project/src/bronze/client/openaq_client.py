@@ -108,6 +108,12 @@ class OpenAQBronzeClient:
             records_written = 0
             with open(temp_path, "wb") as f:
                 for location in locations:
+                    dt_first_str = getattr(getattr(location, "datetime_first", None), "utc", None)
+                    if dt_first_str:
+                        loc_first_date = datetime.date.fromisoformat(dt_first_str[:10])
+                        if loc_first_date > end_date:
+                            continue
+                    
                     sensors_response = self._call_with_retry(self.client.locations.sensors, location.id)
                     sensors = sensors_response.results
                     
@@ -217,7 +223,7 @@ class OpenAQBronzeClient:
                     date_format="%Y-%m"
                     )
 
-            if current_month == 12:
+            if current_month.month == 12:
                 current_month = datetime.date(current_month.year + 1, 1, 1)
             else:
                 current_month = datetime.date(current_month.year, current_month.month + 1, 1)
@@ -226,4 +232,4 @@ class OpenAQBronzeClient:
 if __name__ == "__main__":
     import datetime
     ingest_worker = OpenAQBronzeClient("nyc", (NYC_LATITUDE, NYC_LONGITUDE), 25_000)
-    ingest_worker.run_incremental_air_measurements_ingestion(fallback_year=datetime.date.today().year, fallback_month=datetime.date.today().month - 1)
+    ingest_worker.run_incremental_air_measurements_ingestion(fallback_year=2015, fallback_month=1)

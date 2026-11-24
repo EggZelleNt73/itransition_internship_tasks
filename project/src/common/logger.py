@@ -1,3 +1,4 @@
+import sys
 import logging 
 import inspect
 from src.common.config import settings
@@ -6,7 +7,9 @@ from src.common.config import settings
 logging.basicConfig(
     level=getattr(logging, settings.LOG_LEVEL, logging.INFO),
     format=settings.LOG_FORMAT,
-    datefmt=settings.LOG_DATE_FORMAT
+    datefmt=settings.LOG_DATE_FORMAT,
+    handlers=[logging.StreamHandler(sys.stdout)],
+    force=True
 )
 
 

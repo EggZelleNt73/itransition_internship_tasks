@@ -13,13 +13,15 @@ from src.bronze.client.openaq_client import OpenAQBronzeClient
 from src.bronze.client.worldbank_client import WorldBankBronzeClient
 from src.bronze.client.ecb_client import ECBBronzeClient
 
-def run_taxi_pipeline() -> None:
+
+def run_taxi_pipeline(fallback_year: int = 2009, fallback_month: int = 1) -> None:
     try:
-        run_incremental_taxi_ingestion(fallback_year=datetime.date.today().year, fallback_month=datetime.date.today().month - 2)
+        run_incremental_taxi_ingestion(fallback_year=fallback_year, fallback_month=fallback_month)
     except Exception as err:
         logger.error(f"NYC Taxi ingestion failed: {err}")
 
-def run_openaq_pipeline() -> None:
+
+def run_openaq_pipeline(fallback_year: int = 2016, fallback_month: int = 1) -> None:
     cities = [
         {"city_name": "nyc", "coordinates": (NYC_LATITUDE, NYC_LONGITUDE), "radius": 25000}
     ]
@@ -30,11 +32,12 @@ def run_openaq_pipeline() -> None:
                 coordinates=city["coordinates"],
                 radius=city["radius"]
             )
-            client.run_incremental_air_measurements_ingestion(fallback_year=datetime.date.today().year, fallback_month=datetime.date.today().month - 1)
+            client.run_incremental_air_measurements_ingestion(fallback_year=fallback_year, fallback_month=fallback_month)
         except Exception as err:
             logger.error(f"OpenAQ ingestion failed for {city['city_name']}: {err}")
 
-def run_worldbank_pipeline() -> None:
+
+def run_worldbank_pipeline(fallback_year: int = 2009) -> None:
     targets = [
         {"country_code": "USA", "indicator": "NY.GDP.MKTP.CD"}
     ]
@@ -44,20 +47,22 @@ def run_worldbank_pipeline() -> None:
                 country_code=target["country_code"],
                 indicator=target["indicator"]
             )
-            client.run_incremental_ingestion(fallback_year=datetime.date.today().year - 1)
+            client.run_incremental_ingestion(fallback_year=fallback_year)
         except Exception as err:
             logger.error(f"World Bank ingestion failed for {target['country_code']}: {err}")
 
-def run_ecb_pipeline() -> None:
+
+def run_ecb_pipeline(fallback_start_date: str = "2009-01-01") -> None:
     currency_pairs = [
         ("USD", "EUR")
     ]
     for base, quote in currency_pairs:
         try:
             client = ECBBronzeClient(base_currency=base, quote_currency=quote)
-            client.run_incremental_ingestion(fallback_start_date=(datetime.date.today() - datetime.timedelta(days=30)).strftime("%Y-%m-%d"))
+            client.run_incremental_ingestion(fallback_start_date=fallback_start_date)
         except Exception as err:
             logger.error(f"ECB FX ingestion failed for {base}/{quote}: {err}")
+
 
 def main():
     parser = argparse.ArgumentParser(description="Bronze Layer Ingestion Orchestrator")

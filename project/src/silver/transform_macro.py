@@ -1,10 +1,12 @@
 from pyspark.sql import SparkSession, DataFrame, Window
 from pyspark.sql import functions as F
 from pyspark.sql.types import DoubleType, IntegerType
+import json
 
 from src.common.config import settings
 from src.common.logger import logger
 from src.common.timer import timeit
+from src.common.paths import to_spark_path
 
 
 def build_silver_macro_dataframe(spark: SparkSession, ecb_df: DataFrame, wb_df: DataFrame) -> DataFrame:
@@ -64,17 +66,23 @@ def run_silver_macro_transform(
     ecb_path: str,
     wb_path: str,
 ) -> None:
-    logger.info(f"Reading raw ECB FX CSVs from: {ecb_path}")
-    ecb_df = spark.read.option("header", "true").csv(ecb_path)
+    ecb_spark_path = f"{to_spark_path(ecb_path).rstrip("/")}/ecb_*.csv"
+    wb_spark_path = f"{to_spark_path(wb_path).rstrip("/")}/worldbank_*.json"
 
-    logger.info(f"Reading raw World Bank JSONs from: {wb_path}")
-    raw_wb = spark.read.option("multiLine", "true").json(wb_path)
-    wb_records_df = raw_wb.select(F.explode(F.col("_corrupt_record")).alias("rec")) if "_corrupt_record" in raw_wb.columns else raw_wb
+    logger.info(f"Reading raw ECB FX CSVs from: {ecb_spark_path}")
+    ecb_df = spark.read.option("header", "true").csv(ecb_spark_path)
 
-    wb_json_rdd = spark.sparkContext.wholeTextFiles(wb_path).values()
-    import json
-    parsed_records = wb_json_rdd.flatMap(lambda txt: json.loads(txt) if isinstance(json.loads(txt), list) and len(json.loads(txt)) > 1 else [])
-    wb_df = spark.read.json(parsed_records.map(json.dumps))
+    logger.info(f"Reading raw World Bank JSONs from: {wb_spark_path}")
+    wb_json_rdd = spark.sparkContext.wholeTextFiles(wb_spark_path).values()
+
+    def extract_wb_records(raw_text: str) -> list[str]:
+        payload = json.loads(raw_text)
+        if isinstance(payload, list) and len(payload) > 1 and isinstance(payload[1], list):
+            return [json.dumps(rec) for rec in payload[1]]
+        return []
+
+    parsed_records = wb_json_rdd.flatMap(extract_wb_records)
+    wb_df = spark.read.json(parsed_records)
 
     silver_df = build_silver_macro_dataframe(spark, ecb_df, wb_df)
 

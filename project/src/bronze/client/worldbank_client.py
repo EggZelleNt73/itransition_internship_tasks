@@ -65,7 +65,11 @@ class WorldBankBronzeClient:
         logger.info(f"Fetching {self.entity_tag} from World Bank for window: {start_year} to {current_year}")
 
         try:
-            with httpx.Client(timeout=30.0) as client:
+            headers = {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+                "Accept": "application/json",
+            }
+            with httpx.Client(headers=headers, timeout=60.0) as client:
                 response = client.get(self.endpoint, params=params)
                 response.raise_for_status()
 
