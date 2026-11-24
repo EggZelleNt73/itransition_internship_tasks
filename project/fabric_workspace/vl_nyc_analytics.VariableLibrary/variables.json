@@ -1,0 +1,149 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/variableLibrary/definition/variables/1.0.0/schema.json",
+  "variables": [
+    {
+      "name": "ENVIRONMENT",
+      "note": "",
+      "type": "String",
+      "value": "FABRIC"
+    },
+    {
+      "name": "LOG_LEVEL",
+      "note": "",
+      "type": "String",
+      "value": "INFO"
+    },
+    {
+      "name": "NYC_TAXI_BASE_URL",
+      "note": "",
+      "type": "String",
+      "value": "https://d37ci6vzurychx.cloudfront.net/trip-data"
+    },
+    {
+      "name": "NYC_FILE_PREFIX",
+      "note": "",
+      "type": "String",
+      "value": "yellow_tripdata"
+    },
+    {
+      "name": "NYC_TAXI_RAW_TARGET_DIR",
+      "note": "",
+      "type": "String",
+      "value": "/lakehouse/default/Files/bronze/taxi"
+    },
+    {
+      "name": "NYC_WATERMARK_FILENAME",
+      "note": "",
+      "type": "String",
+      "value": "_watermark.json"
+    },
+    {
+      "name": "SILVER_TAXI_TABLE",
+      "note": "",
+      "type": "String",
+      "value": "silver_taxi_trips"
+    },
+    {
+      "name": "OPENAQ_API_URL",
+      "note": "",
+      "type": "String",
+      "value": "https://openaq.org"
+    },
+    {
+      "name": "OPENAQ_API_KEY",
+      "note": "",
+      "type": "String",
+      "value": "d4c9f2fd264de164d21c7b8aa82d32d356a7244af6433c08ae280159507b5dbf"
+    },
+    {
+      "name": "OPENAQ_RAW_TARGET_DIR",
+      "note": "",
+      "type": "String",
+      "value": "/lakehouse/default/Files/bronze/air_quality"
+    },
+    {
+      "name": "OPENAQ_WATERMARK_FILENAME",
+      "note": "",
+      "type": "String",
+      "value": "_watermark.json"
+    },
+    {
+      "name": "SILVER_AIR_QUALITY_TABLE",
+      "note": "",
+      "type": "String",
+      "value": "silver_air_quality"
+    },
+    {
+      "name": "WORLDBANK_API_URL",
+      "note": "",
+      "type": "String",
+      "value": "https://api.worldbank.org/v2"
+    },
+    {
+      "name": "WORLDBANK_RAW_TARGET_DIR",
+      "note": "",
+      "type": "String",
+      "value": "/lakehouse/default/Files/bronze/worldbank"
+    },
+    {
+      "name": "WORLDBANK_WATERMARK_FILENAME",
+      "note": "",
+      "type": "String",
+      "value": "_watermark.json"
+    },
+    {
+      "name": "ECB_FX_URL",
+      "note": "",
+      "type": "String",
+      "value": "https://data-api.ecb.europa.eu/service/data/EXR"
+    },
+    {
+      "name": "ECB_FX_RAW_TARGET_DIR",
+      "note": "",
+      "type": "String",
+      "value": "/lakehouse/default/Files/bronze/ecb_fx"
+    },
+    {
+      "name": "ECB_FX_WATERMARK_FILENAME",
+      "note": "",
+      "type": "String",
+      "value": "_watermark.json"
+    },
+    {
+      "name": "SILVER_MACRO_TABLE",
+      "note": "",
+      "type": "String",
+      "value": "silver_macro_economic"
+    },
+    {
+      "name": "SILVER_WATERMARKS_PATH",
+      "note": "",
+      "type": "String",
+      "value": "/lakehouse/default/Files/silver/watermarks"
+    },
+    {
+      "name": "GOLD_DIM_DATE_TABLE",
+      "note": "",
+      "type": "String",
+      "value": "gold_dim_date"
+    },
+    {
+      "name": "GOLD_DIM_MACRO_TABLE",
+      "note": "",
+      "type": "String",
+      "value": "gold_dim_macro"
+    },
+    {
+      "name": "GOLD_DIM_LOCATION_TABLE",
+      "note": "",
+      "type": "String",
+      "value": "gold_dim_location"
+    },
+    {
+      "name": "GOLD_FACT_MOBILITY_ENV_TABLE",
+      "note": "",
+      "type": "String",
+      "value": "gold_fact_mobility_env"
+    }
+  ]
+}
